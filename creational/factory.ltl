@@ -1,0 +1,44 @@
+// ────────────────────────────────────────────────────────────
+// Factory Pattern
+// ────────────────────────────────────────────────────────────
+
+pub enum ShapeType { Circle, Square, Triangle }
+
+pub struct Shape {
+    shape_type: ShapeType
+    params: map
+}
+
+impl Shape {
+    pub fn area(self) -> float {
+        match self.shape_type {
+            ShapeType.Circle => {
+                let r = self.params["radius"] as float
+                return 3.14159 * r * r
+            }
+            ShapeType.Square => {
+                let s = self.params["side"] as float
+                return s * s
+            }
+            ShapeType.Triangle => {
+                let b = self.params["base"] as float
+                let h = self.params["height"] as float
+                return 0.5 * b * h
+            }
+        }
+    }
+}
+
+pub fn create_shape(t: str, params: map) -> Shape {
+    match t {
+        "circle" => return Shape { shape_type: ShapeType.Circle, params: params }
+        "square" => return Shape { shape_type: ShapeType.Square, params: params }
+        "triangle" => return Shape { shape_type: ShapeType.Triangle, params: params }
+    }
+    throw RuntimeError("Unknown shape: " + t)
+}
+
+fn main() {
+    let s = create_shape("circle", {"radius": 5.0})
+    println("Circle area: " + s.area() as str)
+}

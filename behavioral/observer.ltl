@@ -1,0 +1,31 @@
+// ────────────────────────────────────────────────────────────
+// Observer Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct EventBus {
+    subscribers: map
+}
+
+impl EventBus {
+    pub fn new() -> EventBus { return EventBus { subscribers: {} } }
+
+    pub fn subscribe(self, topic: str, handler: fn(any)) {
+        if not has_key(self.subscribers, topic) { self.subscribers[topic] = [] }
+        self.subscribers[topic] = push(self.subscribers[topic], handler)
+    }
+
+    pub fn publish(self, topic: str, data: any) {
+        if has_key(self.subscribers, topic) {
+            for handler in self.subscribers[topic] { handler(data) }
+        }
+    }
+}
+
+fn main() {
+    let mut bus = EventBus.new()
+    bus.subscribe("order.created", fn(data) { println("Email: Order " + data as str) })
+    bus.subscribe("order.created", fn(data) { println("Log: Order " + data as str) })
+    bus.subscribe("order.shipped", fn(data) { println("SMS: Shipped " + data as str) })
+    bus.publish("order.created", "#12345")
+    bus.publish("order.shipped", "#12345")
+}

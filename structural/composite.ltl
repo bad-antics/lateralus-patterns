@@ -1,0 +1,49 @@
+// ────────────────────────────────────────────────────────────
+// Composite Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct FileNode {
+    name: str
+    size: int
+    children: list
+    is_dir: bool
+}
+
+impl FileNode {
+    pub fn file(name: str, size: int) -> FileNode {
+        return FileNode { name: name, size: size, children: [], is_dir: false }
+    }
+
+    pub fn dir(name: str) -> FileNode {
+        return FileNode { name: name, size: 0, children: [], is_dir: true }
+    }
+
+    pub fn add(self, child: FileNode) -> FileNode {
+        self.children = push(self.children, child)
+        return self
+    }
+
+    pub fn total_size(self) -> int {
+        if not self.is_dir { return self.size }
+        let mut total = 0
+        for child in self.children { total += child.total_size() }
+        return total
+    }
+
+    pub fn display(self, indent: str) {
+        let icon = if self.is_dir { "📁" } else { "📄" }
+        println(indent + icon + " " + self.name + " (" + self.total_size() as str + " bytes)")
+        for child in self.children { child.display(indent + "  ") }
+    }
+}
+
+fn main() {
+    let root = FileNode.dir("project")
+        .add(FileNode.file("README.md", 1024))
+        .add(FileNode.dir("src")
+            .add(FileNode.file("main.ltl", 2048))
+            .add(FileNode.file("utils.ltl", 512)))
+        .add(FileNode.dir("tests")
+            .add(FileNode.file("test_main.ltl", 768)))
+    root.display("")
+}

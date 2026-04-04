@@ -1,0 +1,33 @@
+// ────────────────────────────────────────────────────────────
+// Decorator Pattern
+// ────────────────────────────────────────────────────────────
+
+pub fn base_coffee() -> map {
+    return {"name": "Coffee", "cost": 2.0}
+}
+
+pub fn add_milk(coffee: map) -> map {
+    coffee["name"] = coffee["name"] + " + Milk"
+    coffee["cost"] = coffee["cost"] as float + 0.5
+    return coffee
+}
+
+pub fn add_sugar(coffee: map) -> map {
+    coffee["name"] = coffee["name"] + " + Sugar"
+    coffee["cost"] = coffee["cost"] as float + 0.25
+    return coffee
+}
+
+pub fn add_whip(coffee: map) -> map {
+    coffee["name"] = coffee["name"] + " + Whipped Cream"
+    coffee["cost"] = coffee["cost"] as float + 0.75
+    return coffee
+}
+
+fn main() {
+    let order = base_coffee()
+        |> add_milk
+        |> add_sugar
+        |> add_whip
+    println(order["name"] + ": $" + order["cost"] as str)
+}

@@ -1,0 +1,37 @@
+// ────────────────────────────────────────────────────────────
+// Flyweight Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct CharacterStyle {
+    font: str
+    size: int
+    color: str
+}
+
+pub struct StyleFactory {
+    styles: map
+}
+
+impl StyleFactory {
+    pub fn new() -> StyleFactory { return StyleFactory { styles: {} } }
+
+    pub fn get_style(self, font: str, size: int, color: str) -> CharacterStyle {
+        let key = font + "_" + size as str + "_" + color
+        if not has_key(self.styles, key) {
+            self.styles[key] = CharacterStyle { font: font, size: size, color: color }
+        }
+        return self.styles[key]
+    }
+
+    pub fn style_count(self) -> int { return len(keys(self.styles)) }
+}
+
+fn main() {
+    let mut factory = StyleFactory.new()
+    let chars = ["H", "e", "l", "l", "o"]
+    for ch in chars {
+        let style = factory.get_style("Arial", 12, "black")
+        println(ch + " -> " + style.font + " " + style.size as str)
+    }
+    println("Unique styles: " + factory.style_count() as str)
+}

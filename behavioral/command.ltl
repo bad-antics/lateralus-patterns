@@ -1,0 +1,37 @@
+// ────────────────────────────────────────────────────────────
+// Command Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct TextEditor { content: str; history: list }
+
+pub struct Command { action: str; data: str; prev: str }
+
+impl TextEditor {
+    pub fn new() -> TextEditor { return TextEditor { content: "", history: [] } }
+
+    pub fn execute(self, cmd: Command) {
+        let prev = self.content
+        match cmd.action {
+            "append" => self.content += cmd.data
+            "clear" => self.content = ""
+        }
+        self.history = push(self.history, Command { action: cmd.action, data: cmd.data, prev: prev })
+    }
+
+    pub fn undo(self) {
+        if len(self.history) > 0 {
+            let last = self.history[len(self.history) - 1]
+            self.content = last.prev
+            self.history = slice(self.history, 0, len(self.history) - 1)
+        }
+    }
+}
+
+fn main() {
+    let mut editor = TextEditor.new()
+    editor.execute(Command { action: "append", data: "Hello ", prev: "" })
+    editor.execute(Command { action: "append", data: "World!", prev: "" })
+    println("Content: " + editor.content)
+    editor.undo()
+    println("After undo: " + editor.content)
+}

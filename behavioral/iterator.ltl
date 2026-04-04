@@ -1,0 +1,40 @@
+// ────────────────────────────────────────────────────────────
+// Iterator Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct Range {
+    current: int
+    end: int
+    step: int
+}
+
+impl Range {
+    pub fn new(start: int, end: int, step: int) -> Range {
+        return Range { current: start, end: end, step: step }
+    }
+
+    pub fn has_next(self) -> bool { return self.current < self.end }
+
+    pub fn next(self) -> int {
+        let val = self.current
+        self.current += self.step
+        return val
+    }
+
+    pub fn collect(self) -> list {
+        let mut result = []
+        while self.has_next() { result = push(result, self.next()) }
+        return result
+    }
+}
+
+fn main() {
+    let r = Range.new(0, 20, 3)
+    println("Range: " + r.collect() as str)
+    let evens = Range.new(0, 20, 2)
+    while evens.has_next() {
+        let val = evens.next()
+        if val > 10 { break }
+        println(val as str)
+    }
+}

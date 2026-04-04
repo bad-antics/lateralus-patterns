@@ -1,0 +1,39 @@
+// ────────────────────────────────────────────────────────────
+// Mediator Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct ChatRoom { messages: list; users: map }
+
+impl ChatRoom {
+    pub fn new() -> ChatRoom { return ChatRoom { messages: [], users: {} } }
+
+    pub fn join(self, name: str) {
+        self.users[name] = true
+        self.broadcast("System", name + " joined the chat")
+    }
+
+    pub fn send_message(self, from: str, to: str, msg: str) {
+        if has_key(self.users, to) {
+            self.messages = push(self.messages, {"from": from, "to": to, "msg": msg})
+            println("[" + from + " -> " + to + "]: " + msg)
+        }
+    }
+
+    pub fn broadcast(self, from: str, msg: str) {
+        for user in keys(self.users) {
+            if user != from {
+                self.messages = push(self.messages, {"from": from, "to": user, "msg": msg})
+                println("[" + from + " -> " + user + "]: " + msg)
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut room = ChatRoom.new()
+    room.join("Alice")
+    room.join("Bob")
+    room.join("Charlie")
+    room.send_message("Alice", "Bob", "Hey!")
+    room.broadcast("Bob", "Hello everyone!")
+}

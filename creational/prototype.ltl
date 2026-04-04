@@ -1,0 +1,29 @@
+// ────────────────────────────────────────────────────────────
+// Prototype Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct Document {
+    title: str
+    content: str
+    metadata: map
+}
+
+impl Document {
+    pub fn clone(self) -> Document {
+        let mut meta_copy = {}
+        for k in keys(self.metadata) { meta_copy[k] = self.metadata[k] }
+        return Document { title: self.title, content: self.content, metadata: meta_copy }
+    }
+}
+
+fn main() {
+    let template = Document {
+        title: "Template", content: "Default content",
+        metadata: {"author": "System", "version": "1.0"}
+    }
+    let mut doc = template.clone()
+    doc.title = "My Document"
+    doc.metadata["author"] = "Alice"
+    println(doc.title + " by " + doc.metadata["author"])
+    println("Template still: " + template.metadata["author"])
+}

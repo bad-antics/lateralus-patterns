@@ -1,0 +1,32 @@
+// ────────────────────────────────────────────────────────────
+// Adapter Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct OldPrinter { data: str }
+impl OldPrinter {
+    pub fn print_uppercase(self) -> str { return to_upper(self.data) }
+}
+
+pub struct ModernPrinter { content: str }
+impl ModernPrinter {
+    pub fn render(self) -> str { return "[Modern] " + self.content }
+}
+
+pub struct PrinterAdapter { printer: any; printer_type: str }
+
+impl PrinterAdapter {
+    pub fn output(self) -> str {
+        match self.printer_type {
+            "old" => return self.printer.print_uppercase()
+            "modern" => return self.printer.render()
+        }
+        return "Unknown printer"
+    }
+}
+
+fn main() {
+    let old = PrinterAdapter { printer: OldPrinter { data: "hello" }, printer_type: "old" }
+    let modern = PrinterAdapter { printer: ModernPrinter { content: "world" }, printer_type: "modern" }
+    println(old.output())
+    println(modern.output())
+}

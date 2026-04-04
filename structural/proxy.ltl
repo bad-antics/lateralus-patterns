@@ -1,0 +1,56 @@
+// ────────────────────────────────────────────────────────────
+// Proxy Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct RealDatabase {
+    data: map
+    queries: int
+}
+
+impl RealDatabase {
+    pub fn new() -> RealDatabase {
+        return RealDatabase { data: {"user:1": "Alice", "user:2": "Bob"}, queries: 0 }
+    }
+
+    pub fn query(self, key: str) -> str {
+        self.queries += 1
+        if has_key(self.data, key) { return self.data[key] }
+        return "Not Found"
+    }
+}
+
+pub struct CachingProxy {
+    db: RealDatabase
+    cache: map
+    hits: int
+}
+
+impl CachingProxy {
+    pub fn new(db: RealDatabase) -> CachingProxy {
+        return CachingProxy { db: db, cache: {}, hits: 0 }
+    }
+
+    pub fn query(self, key: str) -> str {
+        if has_key(self.cache, key) {
+            self.hits += 1
+            return self.cache[key]
+        }
+        let result = self.db.query(key)
+        self.cache[key] = result
+        return result
+    }
+
+    pub fn stats(self) -> str {
+        return "Cache hits: " + self.hits as str + ", DB queries: " + self.db.queries as str
+    }
+}
+
+fn main() {
+    let db = RealDatabase.new()
+    let mut proxy = CachingProxy.new(db)
+    println(proxy.query("user:1"))
+    println(proxy.query("user:1"))
+    println(proxy.query("user:2"))
+    println(proxy.query("user:1"))
+    println(proxy.stats())
+}

@@ -1,0 +1,52 @@
+// ────────────────────────────────────────────────────────────
+// Builder Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct HttpRequest {
+    method: str
+    url: str
+    headers: map
+    body: str
+}
+
+pub struct RequestBuilder {
+    method: str
+    url: str
+    headers: map
+    body: str
+}
+
+impl RequestBuilder {
+    pub fn new() -> RequestBuilder {
+        return RequestBuilder { method: "GET", url: "", headers: {}, body: "" }
+    }
+
+    pub fn method(self, m: str) -> RequestBuilder {
+        self.method = m; return self
+    }
+    pub fn url(self, u: str) -> RequestBuilder {
+        self.url = u; return self
+    }
+    pub fn header(self, key: str, val: str) -> RequestBuilder {
+        self.headers[key] = val; return self
+    }
+    pub fn body(self, b: str) -> RequestBuilder {
+        self.body = b; return self
+    }
+    pub fn build(self) -> HttpRequest {
+        return HttpRequest {
+            method: self.method, url: self.url,
+            headers: self.headers, body: self.body
+        }
+    }
+}
+
+fn main() {
+    let req = RequestBuilder.new()
+        .method("POST")
+        .url("https://api.example.com/data")
+        .header("Content-Type", "application/json")
+        .body("{"key": "value"}")
+        .build()
+    println(req.method + " " + req.url)
+}

@@ -1,0 +1,44 @@
+// ────────────────────────────────────────────────────────────
+// Chain of Responsibility
+// ────────────────────────────────────────────────────────────
+
+pub struct Handler {
+    name: str
+    can_handle: fn(int) -> bool
+    process: fn(int) -> str
+    next: Handler?
+}
+
+pub fn create_chain() -> Handler {
+    let small = Handler {
+        name: "SmallHandler", can_handle: fn(n) { return n < 10 },
+        process: fn(n) { return "Small: " + n as str },
+        next: nil
+    }
+    let medium = Handler {
+        name: "MediumHandler", can_handle: fn(n) { return n < 100 },
+        process: fn(n) { return "Medium: " + n as str },
+        next: nil
+    }
+    let large = Handler {
+        name: "LargeHandler", can_handle: fn(n) { return true },
+        process: fn(n) { return "Large: " + n as str },
+        next: nil
+    }
+    small.next = medium
+    medium.next = large
+    return small
+}
+
+pub fn handle(h: Handler?, request: int) -> str {
+    if h == nil { return "Unhandled" }
+    if h.can_handle(request) { return h.process(request) }
+    return handle(h.next, request)
+}
+
+fn main() {
+    let chain = create_chain()
+    println(handle(chain, 5))
+    println(handle(chain, 50))
+    println(handle(chain, 500))
+}

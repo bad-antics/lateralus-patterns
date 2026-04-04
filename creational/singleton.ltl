@@ -1,0 +1,25 @@
+// ────────────────────────────────────────────────────────────
+// Singleton Pattern
+// ────────────────────────────────────────────────────────────
+
+pub struct Config {
+    host: str
+    port: int
+    debug: bool
+}
+
+let mut _instance: Config? = nil
+
+pub fn get_config() -> Config {
+    if _instance == nil {
+        _instance = Config { host: "localhost", port: 8080, debug: false }
+    }
+    return _instance
+}
+
+fn main() {
+    let c1 = get_config()
+    let c2 = get_config()
+    println("Same instance: " + (c1 == c2) as str)
+    println("Host: " + c1.host)
+}
