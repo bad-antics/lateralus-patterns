@@ -1,0 +1,32 @@
+// Design Pattern: Bulkhead
+// Category: Architectural
+module patterns.architectural.bulkhead
+
+pub struct BulkheadContext {
+    state: map
+    history: list
+}
+
+impl BulkheadContext {
+    pub fn new() -> BulkheadContext {
+        return BulkheadContext { state: {}, history: [] }
+    }
+    pub fn apply(self, action: str, data: any) -> any {
+        self.history = push(self.history, {"action": action, "data": data})
+        self.state[action] = data
+        return data
+    }
+    pub fn undo(self) -> bool {
+        if len(self.history) == 0 { return false }
+        self.history = slice(self.history, 0, len(self.history) - 1)
+        return true
+    }
+}
+
+fn main() {
+    let ctx = BulkheadContext.new()
+    ctx.apply("init", {"version": "1.0"})
+    ctx.apply("update", {"value": 42})
+    println("Bulkhead pattern: " + ctx.state as str)
+    println("History length: " + len(ctx.history) as str)
+}

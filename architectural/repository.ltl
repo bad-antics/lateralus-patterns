@@ -1,0 +1,32 @@
+// Design Pattern: Repository
+// Category: Architectural
+module patterns.architectural.repository
+
+pub struct RepositoryContext {
+    state: map
+    history: list
+}
+
+impl RepositoryContext {
+    pub fn new() -> RepositoryContext {
+        return RepositoryContext { state: {}, history: [] }
+    }
+    pub fn apply(self, action: str, data: any) -> any {
+        self.history = push(self.history, {"action": action, "data": data})
+        self.state[action] = data
+        return data
+    }
+    pub fn undo(self) -> bool {
+        if len(self.history) == 0 { return false }
+        self.history = slice(self.history, 0, len(self.history) - 1)
+        return true
+    }
+}
+
+fn main() {
+    let ctx = RepositoryContext.new()
+    ctx.apply("init", {"version": "1.0"})
+    ctx.apply("update", {"value": 42})
+    println("Repository pattern: " + ctx.state as str)
+    println("History length: " + len(ctx.history) as str)
+}

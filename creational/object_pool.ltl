@@ -1,0 +1,32 @@
+// Design Pattern: Object Pool
+// Category: Creational
+module patterns.creational.object_pool
+
+pub struct ObjectpoolContext {
+    state: map
+    history: list
+}
+
+impl ObjectpoolContext {
+    pub fn new() -> ObjectpoolContext {
+        return ObjectpoolContext { state: {}, history: [] }
+    }
+    pub fn apply(self, action: str, data: any) -> any {
+        self.history = push(self.history, {"action": action, "data": data})
+        self.state[action] = data
+        return data
+    }
+    pub fn undo(self) -> bool {
+        if len(self.history) == 0 { return false }
+        self.history = slice(self.history, 0, len(self.history) - 1)
+        return true
+    }
+}
+
+fn main() {
+    let ctx = ObjectpoolContext.new()
+    ctx.apply("init", {"version": "1.0"})
+    ctx.apply("update", {"value": 42})
+    println("Object Pool pattern: " + ctx.state as str)
+    println("History length: " + len(ctx.history) as str)
+}
