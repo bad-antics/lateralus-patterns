@@ -1,44 +1,34 @@
-// ────────────────────────────────────────────────────────────
-// Factory Pattern
-// ────────────────────────────────────────────────────────────
+// creational/factory.ltl
+// Factory Method: defines an interface for creating an object but lets
+// subclasses (or tagged branches in enum-style code) decide what concrete
+// type to instantiate. Ref: GoF p.107.
 
-pub enum ShapeType { Circle, Square, Triangle }
+module creational.factory
 
-pub struct Shape {
-    shape_type: ShapeType
-    params: map
+pub const KIND_PNG:  u8 = 0
+pub const KIND_JPEG: u8 = 1
+pub const KIND_GIF:  u8 = 2
+
+pub struct Image { kind: u8, width: u32, height: u32, bpp: u8, data: [u8] }
+
+pub fn create_image(kind: u8, w: u32, h: u32) -> Image {
+    if kind == KIND_PNG  { return Image { kind: kind, width: w, height: h, bpp: 32, data: [] } }
+    if kind == KIND_JPEG { return Image { kind: kind, width: w, height: h, bpp: 24, data: [] } }
+    if kind == KIND_GIF  { return Image { kind: kind, width: w, height: h, bpp: 8,  data: [] } }
+    return Image { kind: 255, width: 0, height: 0, bpp: 0, data: [] }
 }
 
-impl Shape {
-    pub fn area(self) -> float {
-        match self.shape_type {
-            ShapeType.Circle => {
-                let r = self.params["radius"] as float
-                return 3.14159 * r * r
-            }
-            ShapeType.Square => {
-                let s = self.params["side"] as float
-                return s * s
-            }
-            ShapeType.Triangle => {
-                let b = self.params["base"] as float
-                let h = self.params["height"] as float
-                return 0.5 * b * h
-            }
-        }
-    }
+// Parametric factory keyed on MIME type.
+pub fn from_mime(mime: str, w: u32, h: u32) -> Image {
+    if mime == "image/png"  { return create_image(KIND_PNG,  w, h) }
+    if mime == "image/jpeg" { return create_image(KIND_JPEG, w, h) }
+    if mime == "image/gif"  { return create_image(KIND_GIF,  w, h) }
+    return create_image(255, 0, 0)
 }
 
-pub fn create_shape(t: str, params: map) -> Shape {
-    match t {
-        "circle" => return Shape { shape_type: ShapeType.Circle, params: params }
-        "square" => return Shape { shape_type: ShapeType.Square, params: params }
-        "triangle" => return Shape { shape_type: ShapeType.Triangle, params: params }
-    }
-    throw RuntimeError("Unknown shape: " + t)
-}
-
-fn main() {
-    let s = create_shape("circle", {"radius": 5.0})
-    println("Circle area: " + s.area() as str)
+pub fn main() {
+    let a: Image = create_image(KIND_PNG,  800, 600)
+    let b: Image = from_mime("image/jpeg", 1024, 768)
+    print("a kind=", a.kind, " bpp=", a.bpp)
+    print("b kind=", b.kind, " bpp=", b.bpp)
 }
