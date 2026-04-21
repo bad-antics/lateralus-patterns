@@ -1,32 +1,54 @@
-// Design Pattern: Read-Write Lock
-// Category: Concurrency
-module patterns.concurrency.read_write_lock
+// concurrency/read_write_lock.ltl
+// Read-Write Lock (Courtois, Heymans & Parnas 1971): multiple concurrent
+// readers OR a single writer, never both. Implements writer-preference
+// variant (readers wait if a writer is queued) to avoid writer
+// starvation. Single-threaded state-machine simulation.
 
-pub struct ReadwritelockContext {
-    state: map
-    history: list
+module concurrency.read_write_lock
+
+pub struct RwLock { readers: u32, writer: bool, waiting_writers: u32 }
+
+pub fn new_rwlock() -> RwLock { return RwLock { readers: 0, writer: false, waiting_writers: 0 } }
+
+pub fn read_acquire(l: &mut RwLock) -> bool {
+    if l.writer || l.waiting_writers > 0 { return false }   // block
+    l.readers = l.readers + 1
+    return true
 }
 
-impl ReadwritelockContext {
-    pub fn new() -> ReadwritelockContext {
-        return ReadwritelockContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+pub fn read_release(l: &mut RwLock) -> bool {
+    if l.readers == 0 { return false }
+    l.readers = l.readers - 1
+    return true
 }
 
-fn main() {
-    let ctx = ReadwritelockContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Read-Write Lock pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn write_request(l: &mut RwLock) -> bool {
+    if l.writer || l.readers > 0 { l.waiting_writers = l.waiting_writers + 1; return false }
+    l.writer = true
+    return true
+}
+
+pub fn write_release(l: &mut RwLock) -> bool {
+    if !l.writer { return false }
+    l.writer = false
+    // Promote queued writer (writer-preference).
+    if l.waiting_writers > 0 { l.waiting_writers = l.waiting_writers - 1; l.writer = true }
+    return true
+}
+
+pub fn main() {
+    let mut l: RwLock = new_rwlock()
+    let a: bool = read_acquire(&mut l)
+    let b: bool = read_acquire(&mut l)
+    print("2 readers: a=", a, " b=", b, " readers=", l.readers, " (expect true/true/2)")
+    let w: bool = write_request(&mut l)                    // blocks (readers > 0)
+    print("write w/ readers: w=", w, " waiting=", l.waiting_writers, " (expect false/1)")
+    let c: bool = read_acquire(&mut l)                     // blocked: writer waiting
+    print("new reader blocked: c=", c, " (expect false)")
+    let _: bool = read_release(&mut l); let _: bool = read_release(&mut l)
+    // All readers gone -> not auto-promoted here (caller re-requests).
+    let w2: bool = write_request(&mut l)
+    print("writer now: w2=", w2, " writer=", l.writer, " (expect true/true)")
+    let _: bool = write_release(&mut l)
+    print("after release: writer=", l.writer, " (expect false)")
 }
