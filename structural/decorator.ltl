@@ -1,33 +1,52 @@
-// ────────────────────────────────────────────────────────────
-// Decorator Pattern
-// ────────────────────────────────────────────────────────────
+// structural/decorator.ltl
+// Decorator: attaches additional responsibilities to an object dynamically
+// without altering its interface. Chain of decorators wraps a core stream
+// function. Ref: GoF p.175.
 
-pub fn base_coffee() -> map {
-    return {"name": "Coffee", "cost": 2.0}
+module structural.decorator
+
+// A "stream" is modelled as a closure [u8] -> [u8] applied to outgoing bytes.
+pub fn identity(b: [u8]) -> [u8] { return b }
+
+pub fn gzip_wrap(inner: fn([u8]) -> [u8]) -> fn([u8]) -> [u8] {
+    return |b: [u8]| -> [u8] {
+        let pre: [u8] = inner(b)
+        let mut out: [u8] = u8_zeros(len(pre) + 4)
+        out[0] = 0x1F; out[1] = 0x8B; out[2] = 0x08; out[3] = 0x00
+        let mut i: u64 = 0
+        while i < len(pre) { out[4 + i] = pre[i]; i = i + 1 }
+        return out
+    }
 }
 
-pub fn add_milk(coffee: map) -> map {
-    coffee["name"] = coffee["name"] + " + Milk"
-    coffee["cost"] = coffee["cost"] as float + 0.5
-    return coffee
+pub fn base64_wrap(inner: fn([u8]) -> [u8]) -> fn([u8]) -> [u8] {
+    let tbl: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    return |b: [u8]| -> [u8] {
+        let pre: [u8] = inner(b)
+        let n: u64 = len(pre)
+        let olen: u64 = 4 * ((n + 2) / 3)
+        let mut out: [u8] = u8_zeros(olen)
+        let mut i: u64 = 0; let mut j: u64 = 0
+        while i + 2 < n {
+            let v: u32 = ((pre[i] as u32) << 16) | ((pre[i+1] as u32) << 8) | (pre[i+2] as u32)
+            out[j]   = tbl[((v >> 18) & 0x3F) as u64]
+            out[j+1] = tbl[((v >> 12) & 0x3F) as u64]
+            out[j+2] = tbl[((v >>  6) & 0x3F) as u64]
+            out[j+3] = tbl[( v        & 0x3F) as u64]
+            i = i + 3; j = j + 4
+        }
+        return out
+    }
 }
 
-pub fn add_sugar(coffee: map) -> map {
-    coffee["name"] = coffee["name"] + " + Sugar"
-    coffee["cost"] = coffee["cost"] as float + 0.25
-    return coffee
-}
-
-pub fn add_whip(coffee: map) -> map {
-    coffee["name"] = coffee["name"] + " + Whipped Cream"
-    coffee["cost"] = coffee["cost"] as float + 0.75
-    return coffee
-}
-
-fn main() {
-    let order = base_coffee()
-        |> add_milk
-        |> add_sugar
-        |> add_whip
-    println(order["name"] + ": $" + order["cost"] as str)
+pub fn main() {
+    let core: fn([u8]) -> [u8] = identity
+    let gz:   fn([u8]) -> [u8] = gzip_wrap(core)
+    let both: fn([u8]) -> [u8] = base64_wrap(gz)
+    let inp: [u8] = str_to_bytes("hello world 123456")
+    let o1: [u8] = core(inp)
+    let o2: [u8] = gz(inp)
+    let o3: [u8] = both(inp)
+    print("core=", len(o1), " gzipped=", len(o2), " gz+b64=", len(o3))
+    print("gz[0..4]=", o2[0], o2[1], o2[2], o2[3], " (expect 0x1F 0x8B 0x08 0x00)")
 }
