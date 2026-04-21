@@ -1,32 +1,36 @@
-// Design Pattern: Lazy Initialization
-// Category: Creational
-module patterns.creational.lazy_init
+// creational/lazy_init.ltl
+// Lazy Initialisation: defer expensive computation until first use, then
+// cache the result. Equivalent to a thread-unsafe `std::sync::OnceCell`.
+// Ref: Fowler "Patterns of Enterprise Application Architecture" p.200.
 
-pub struct LazyinitContext {
-    state: map
-    history: list
+module creational.lazy_init
+
+pub struct Lazy { computed: bool, value: i64 }
+
+pub fn new_lazy() -> Lazy { return Lazy { computed: false, value: 0 } }
+
+// expensive_compute: simulated sum 1..N.
+fn expensive_compute(n: u64) -> i64 {
+    let mut s: i64 = 0; let mut i: u64 = 1
+    while i <= n { s = s + i as i64; i = i + 1 }
+    return s
 }
 
-impl LazyinitContext {
-    pub fn new() -> LazyinitContext {
-        return LazyinitContext { state: {}, history: [] }
+pub fn get(l: &mut Lazy, n: u64) -> i64 {
+    if !l.computed {
+        l.value = expensive_compute(n)
+        l.computed = true
     }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+    return l.value
 }
 
-fn main() {
-    let ctx = LazyinitContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Lazy Initialization pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn is_computed(l: Lazy) -> bool { return l.computed }
+
+pub fn main() {
+    let mut l: Lazy = new_lazy()
+    print("computed? ", is_computed(l))
+    let v1: i64 = get(&mut l, 1000)
+    print("value=", v1, " computed? ", is_computed(l))
+    let v2: i64 = get(&mut l, 1000)
+    print("cached  =", v2, " (same, no recompute)")
 }
