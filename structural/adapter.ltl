@@ -1,32 +1,25 @@
-// ────────────────────────────────────────────────────────────
-// Adapter Pattern
-// ────────────────────────────────────────────────────────────
+// structural/adapter.ltl
+// Adapter: converts one interface into another the client expects.
+// Here legacy temperature sensors return Fahrenheit; modern code expects
+// Celsius. The adapter wraps the legacy sensor and converts on read.
+// Ref: GoF p.139.
 
-pub struct OldPrinter { data: str }
-impl OldPrinter {
-    pub fn print_uppercase(self) -> str { return to_upper(self.data) }
+module structural.adapter
+
+pub struct FahrenheitSensor { id: u32, reading_f: f64 }
+pub struct CelsiusSensor    { id: u32, reading_c: f64 }
+
+// Modern client API.
+pub fn read_celsius(s: CelsiusSensor) -> f64 { return s.reading_c }
+
+// Adapter: exposes the Celsius interface over a Fahrenheit sensor.
+pub fn adapt_fahrenheit(s: FahrenheitSensor) -> CelsiusSensor {
+    let c: f64 = (s.reading_f - 32.0) * 5.0 / 9.0
+    return CelsiusSensor { id: s.id, reading_c: c }
 }
 
-pub struct ModernPrinter { content: str }
-impl ModernPrinter {
-    pub fn render(self) -> str { return "[Modern] " + self.content }
-}
-
-pub struct PrinterAdapter { printer: any; printer_type: str }
-
-impl PrinterAdapter {
-    pub fn output(self) -> str {
-        match self.printer_type {
-            "old" => return self.printer.print_uppercase()
-            "modern" => return self.printer.render()
-        }
-        return "Unknown printer"
-    }
-}
-
-fn main() {
-    let old = PrinterAdapter { printer: OldPrinter { data: "hello" }, printer_type: "old" }
-    let modern = PrinterAdapter { printer: ModernPrinter { content: "world" }, printer_type: "modern" }
-    println(old.output())
-    println(modern.output())
+pub fn main() {
+    let f: FahrenheitSensor = FahrenheitSensor { id: 1, reading_f: 212.0 }
+    let c: CelsiusSensor    = adapt_fahrenheit(f)
+    print("F=", f.reading_f, " -> C=", c.reading_c, " (expect 100)")
 }
