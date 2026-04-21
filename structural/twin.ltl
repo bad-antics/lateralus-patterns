@@ -1,32 +1,51 @@
-// Design Pattern: Twin
-// Category: Structural
-module patterns.structural.twin
+// structural/twin.ltl
+// Twin: simulates multiple inheritance in single-inheritance languages by
+// pairing two objects that hold back-references to each other. Used for
+// UI elements that must inherit from both a framework Widget and a game
+// Sprite, for example.
+// Ref: Mikhajlov & Sekerinski "A Study of the Fragile Base Class Problem".
 
-pub struct TwinContext {
-    state: map
-    history: list
-}
+module structural.twin
 
-impl TwinContext {
-    pub fn new() -> TwinContext {
-        return TwinContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
+pub struct Widget  { id: u32, name: str, sprite_id: u32 }     // "twin" pointer
+pub struct Sprite  { id: u32, x: f64, y: f64, widget_id: u32 }
+
+pub struct TwinPair { widget: Widget, sprite: Sprite }
+
+pub fn pair(id: u32, name: str, x: f64, y: f64) -> TwinPair {
+    return TwinPair {
+        widget: Widget { id: id, name: name, sprite_id: id },
+        sprite: Sprite { id: id, x: x, y: y, widget_id: id },
     }
 }
 
-fn main() {
-    let ctx = TwinContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Twin pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn move_twin(t: &mut TwinPair, dx: f64, dy: f64) {
+    t.sprite.x = t.sprite.x + dx; t.sprite.y = t.sprite.y + dy
+}
+
+pub fn rename(t: &mut TwinPair, name: str) { t.widget.name = name }
+
+pub fn describe(t: TwinPair) -> str {
+    return t.widget.name + " at (" + ftoa(t.sprite.x) + ", " + ftoa(t.sprite.y) + ")"
+}
+
+fn ftoa(x: f64) -> str {
+    // simplistic integer-part formatter
+    if x == 0.0 { return "0" }
+    let neg: bool = x < 0.0
+    let mut v: u64 = if neg { (-x) as u64 } else { x as u64 }
+    if v == 0 { return if neg { "-0" } else { "0" } }
+    let mut buf: [u8] = u8_zeros(20); let mut n: u64 = 0
+    while v > 0 { buf[n] = ('0' as u8) + (v % 10) as u8; v = v / 10; n = n + 1 }
+    let mut s: str = if neg { "-" } else { "" }
+    while n > 0 { n = n - 1; s = s + char_of(buf[n]) }
+    return s
+}
+
+pub fn main() {
+    let mut t: TwinPair = pair(1, "Hero", 0.0, 0.0)
+    move_twin(&mut t, 3.0, 4.0)
+    rename(&mut t, "SuperHero")
+    print(describe(t))
+    print("widget.sprite_id=", t.widget.sprite_id, " sprite.widget_id=", t.sprite.widget_id)
 }
