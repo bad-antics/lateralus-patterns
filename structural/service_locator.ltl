@@ -1,32 +1,46 @@
-// Design Pattern: Service Locator
-// Category: Structural
-module patterns.structural.service_locator
+// structural/service_locator.ltl
+// Service Locator: central registry from which clients resolve service
+// implementations by name. Alternative to constructor-injection DI.
+// Ref: Fowler 2004 "Inversion of Control Containers and the DI Pattern".
 
-pub struct ServicelocatorContext {
-    state: map
-    history: list
+module structural.service_locator
+
+pub struct ServiceRef { name: str, impl_tag: str, version: u32 }
+
+pub struct Locator { services: [ServiceRef] }
+
+static mut LOC: Locator = Locator { services: [] }
+
+pub fn register(name: str, impl_tag: str, version: u32) {
+    unsafe {
+        let mut i: u64 = 0
+        while i < len(LOC.services) {
+            if LOC.services[i].name == name { LOC.services[i] = ServiceRef { name: name, impl_tag: impl_tag, version: version }; return }
+            i = i + 1
+        }
+        LOC.services.push(ServiceRef { name: name, impl_tag: impl_tag, version: version })
+    }
 }
 
-impl ServicelocatorContext {
-    pub fn new() -> ServicelocatorContext {
-        return ServicelocatorContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
+pub fn resolve(name: str) -> (bool, ServiceRef) {
+    unsafe {
+        let mut i: u64 = 0
+        while i < len(LOC.services) {
+            if LOC.services[i].name == name { return (true, LOC.services[i]) }
+            i = i + 1
+        }
+        return (false, ServiceRef { name: "", impl_tag: "", version: 0 })
     }
 }
 
-fn main() {
-    let ctx = ServicelocatorContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Service Locator pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn reset() { unsafe { LOC.services = [] } }
+
+pub fn main() {
+    reset()
+    register("Logger",  "StdoutLogger", 2)
+    register("Storage", "S3Storage",    5)
+    let (ok, s): (bool, ServiceRef) = resolve("Logger")
+    print("logger ok=", ok, " impl=", s.impl_tag, " v=", s.version)
+    let (ok2, _): (bool, ServiceRef) = resolve("Missing")
+    print("missing ok=", ok2, " (expect false)")
 }
