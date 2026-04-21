@@ -1,56 +1,53 @@
-// ────────────────────────────────────────────────────────────
-// Proxy Pattern
-// ────────────────────────────────────────────────────────────
+// structural/proxy.ltl
+// Proxy: surrogate that controls access to another object. Here we build
+// a caching proxy over an "expensive_service" function; repeated calls
+// for the same key are served from a bounded cache with LRU eviction.
+// Ref: GoF p.207.
 
-pub struct RealDatabase {
-    data: map
-    queries: int
+module structural.proxy
+
+pub struct CacheEntry { key: u64, value: i64, last_used: u64 }
+
+pub struct CachingProxy { cap: u64, clock: u64, entries: [CacheEntry], calls_real: u64 }
+
+pub fn new_proxy(cap: u64) -> CachingProxy {
+    return CachingProxy { cap: cap, clock: 0, entries: [], calls_real: 0 }
 }
 
-impl RealDatabase {
-    pub fn new() -> RealDatabase {
-        return RealDatabase { data: {"user:1": "Alice", "user:2": "Bob"}, queries: 0 }
-    }
+// The subject (expensive, deterministic).
+fn expensive_service(key: u64) -> i64 { return (key as i64) * (key as i64) + 1 }
 
-    pub fn query(self, key: str) -> str {
-        self.queries += 1
-        if has_key(self.data, key) { return self.data[key] }
-        return "Not Found"
-    }
-}
-
-pub struct CachingProxy {
-    db: RealDatabase
-    cache: map
-    hits: int
-}
-
-impl CachingProxy {
-    pub fn new(db: RealDatabase) -> CachingProxy {
-        return CachingProxy { db: db, cache: {}, hits: 0 }
-    }
-
-    pub fn query(self, key: str) -> str {
-        if has_key(self.cache, key) {
-            self.hits += 1
-            return self.cache[key]
+pub fn call(p: &mut CachingProxy, key: u64) -> i64 {
+    p.clock = p.clock + 1
+    let mut i: u64 = 0
+    while i < len(p.entries) {
+        if p.entries[i].key == key {
+            p.entries[i].last_used = p.clock
+            return p.entries[i].value
         }
-        let result = self.db.query(key)
-        self.cache[key] = result
-        return result
+        i = i + 1
     }
-
-    pub fn stats(self) -> str {
-        return "Cache hits: " + self.hits as str + ", DB queries: " + self.db.queries as str
+    let v: i64 = expensive_service(key)
+    p.calls_real = p.calls_real + 1
+    if len(p.entries) >= p.cap {
+        // LRU eviction.
+        let mut lru: u64 = 0; i = 1
+        while i < len(p.entries) {
+            if p.entries[i].last_used < p.entries[lru].last_used { lru = i }
+            i = i + 1
+        }
+        p.entries.remove(lru)
     }
+    p.entries.push(CacheEntry { key: key, value: v, last_used: p.clock })
+    return v
 }
 
-fn main() {
-    let db = RealDatabase.new()
-    let mut proxy = CachingProxy.new(db)
-    println(proxy.query("user:1"))
-    println(proxy.query("user:1"))
-    println(proxy.query("user:2"))
-    println(proxy.query("user:1"))
-    println(proxy.stats())
+pub fn main() {
+    let mut p: CachingProxy = new_proxy(3)
+    let _: i64 = call(&mut p, 10)
+    let _: i64 = call(&mut p, 20)
+    let _: i64 = call(&mut p, 10)         // hit
+    let _: i64 = call(&mut p, 30)
+    let _: i64 = call(&mut p, 40)         // evicts LRU
+    print("real calls=", p.calls_real, " cache_size=", len(p.entries), " (expect 4 / 3)")
 }
