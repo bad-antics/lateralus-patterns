@@ -1,32 +1,65 @@
-// Design Pattern: Active Object
-// Category: Concurrency
-module patterns.concurrency.active_object
+// concurrency/active_object.ltl
+// Active Object (POSA2 ch.5, Lavender & Schmidt 1996): decouples method
+// invocation from method execution. Method calls on the proxy enqueue
+// "method requests" that a scheduler dequeues and executes on the
+// servant. Returns "futures" to the caller.
 
-pub struct ActiveobjectContext {
-    state: map
-    history: list
+module concurrency.active_object
+
+pub const OP_ADD: u8 = 0
+pub const OP_SUB: u8 = 1
+
+pub struct MethodRequest { id: u32, op: u8, a: i64, b: i64 }
+pub struct Future        { id: u32, ready: bool, value: i64 }
+
+pub struct ActiveObject { queue: [MethodRequest], futures: [Future], next_id: u32 }
+
+pub fn new_ao() -> ActiveObject { return ActiveObject { queue: [], futures: [], next_id: 1 } }
+
+pub fn call_add(ao: &mut ActiveObject, a: i64, b: i64) -> u32 {
+    let id: u32 = ao.next_id; ao.next_id = ao.next_id + 1
+    ao.queue.push(MethodRequest { id: id, op: OP_ADD, a: a, b: b })
+    ao.futures.push(Future { id: id, ready: false, value: 0 })
+    return id
 }
 
-impl ActiveobjectContext {
-    pub fn new() -> ActiveobjectContext {
-        return ActiveobjectContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+pub fn call_sub(ao: &mut ActiveObject, a: i64, b: i64) -> u32 {
+    let id: u32 = ao.next_id; ao.next_id = ao.next_id + 1
+    ao.queue.push(MethodRequest { id: id, op: OP_SUB, a: a, b: b })
+    ao.futures.push(Future { id: id, ready: false, value: 0 })
+    return id
 }
 
-fn main() {
-    let ctx = ActiveobjectContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Active Object pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+// Scheduler loop: pops one request, executes on servant, resolves future.
+pub fn dispatch_one(ao: &mut ActiveObject) -> bool {
+    if len(ao.queue) == 0 { return false }
+    let r: MethodRequest = ao.queue[0]
+    ao.queue.remove(0)
+    let v: i64 = if r.op == OP_ADD { r.a + r.b } else { r.a - r.b }
+    let mut i: u64 = 0
+    while i < len(ao.futures) {
+        if ao.futures[i].id == r.id { ao.futures[i].ready = true; ao.futures[i].value = v; return true }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn wait(ao: &mut ActiveObject, id: u32) -> i64 {
+    while true {
+        let mut i: u64 = 0
+        while i < len(ao.futures) {
+            if ao.futures[i].id == id && ao.futures[i].ready { return ao.futures[i].value }
+            i = i + 1
+        }
+        if !dispatch_one(ao) { return 0 }
+    }
+    return 0
+}
+
+pub fn main() {
+    let mut ao: ActiveObject = new_ao()
+    let f1: u32 = call_add(&mut ao, 3, 4)
+    let f2: u32 = call_sub(&mut ao, 10, 6)
+    print("f1 =", wait(&mut ao, f1), " (expect 7)")
+    print("f2 =", wait(&mut ao, f2), " (expect 4)")
 }
