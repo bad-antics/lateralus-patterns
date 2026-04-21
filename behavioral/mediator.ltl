@@ -1,39 +1,49 @@
-// ────────────────────────────────────────────────────────────
-// Mediator Pattern
-// ────────────────────────────────────────────────────────────
+// behavioral/mediator.ltl
+// Mediator: encapsulates how a set of objects interact, promoting loose
+// coupling. Here a ChatRoom mediator routes messages; users never hold
+// direct references to each other. Ref: GoF p.273.
 
-pub struct ChatRoom { messages: list; users: map }
+module behavioral.mediator
 
-impl ChatRoom {
-    pub fn new() -> ChatRoom { return ChatRoom { messages: [], users: {} } }
+pub struct Message { from: str, to: str, body: str }
 
-    pub fn join(self, name: str) {
-        self.users[name] = true
-        self.broadcast("System", name + " joined the chat")
-    }
+pub struct ChatRoom { users: [str], mailbox: [Message] }
 
-    pub fn send_message(self, from: str, to: str, msg: str) {
-        if has_key(self.users, to) {
-            self.messages = push(self.messages, {"from": from, "to": to, "msg": msg})
-            println("[" + from + " -> " + to + "]: " + msg)
-        }
-    }
+pub fn new_room() -> ChatRoom { return ChatRoom { users: [], mailbox: [] } }
 
-    pub fn broadcast(self, from: str, msg: str) {
-        for user in keys(self.users) {
-            if user != from {
-                self.messages = push(self.messages, {"from": from, "to": user, "msg": msg})
-                println("[" + from + " -> " + user + "]: " + msg)
-            }
-        }
-    }
+pub fn join(r: &mut ChatRoom, user: str) {
+    let mut i: u64 = 0
+    while i < len(r.users) { if r.users[i] == user { return }; i = i + 1 }
+    r.users.push(user)
 }
 
-fn main() {
-    let mut room = ChatRoom.new()
-    room.join("Alice")
-    room.join("Bob")
-    room.join("Charlie")
-    room.send_message("Alice", "Bob", "Hey!")
-    room.broadcast("Bob", "Hello everyone!")
+// Users only talk through the mediator.
+pub fn send(r: &mut ChatRoom, from: str, to: str, body: str) -> bool {
+    let mut exists: bool = false
+    let mut i: u64 = 0
+    while i < len(r.users) { if r.users[i] == to { exists = true }; i = i + 1 }
+    if !exists { return false }
+    r.mailbox.push(Message { from: from, to: to, body: body })
+    return true
+}
+
+pub fn inbox_of(r: ChatRoom, user: str) -> [Message] {
+    let mut out: [Message] = []
+    let mut i: u64 = 0
+    while i < len(r.mailbox) {
+        if r.mailbox[i].to == user { out.push(r.mailbox[i]) }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn main() {
+    let mut r: ChatRoom = new_room()
+    join(&mut r, "alice"); join(&mut r, "bob"); join(&mut r, "carol")
+    let _: bool = send(&mut r, "alice", "bob",   "hi bob")
+    let _: bool = send(&mut r, "carol", "bob",   "hello bob")
+    let _: bool = send(&mut r, "alice", "carol", "hey carol")
+    let ok: bool = send(&mut r, "alice", "dave",  "no one")
+    print("bob inbox=", len(inbox_of(r, "bob")), " (expect 2)")
+    print("dave send=", ok, " (expect false)")
 }
