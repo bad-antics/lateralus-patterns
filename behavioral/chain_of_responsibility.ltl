@@ -1,44 +1,38 @@
-// ────────────────────────────────────────────────────────────
-// Chain of Responsibility
-// ────────────────────────────────────────────────────────────
+// behavioral/chain_of_responsibility.ltl
+// Chain of Responsibility: pass a request along a chain of handlers; each
+// either handles it or forwards it. Canonical example: event bubbling,
+// exception handlers. Ref: GoF p.223.
 
-pub struct Handler {
-    name: str
-    can_handle: fn(int) -> bool
-    process: fn(int) -> str
-    next: Handler?
+module behavioral.chain_of_responsibility
+
+pub struct LogRecord { level: u8, message: str }
+
+pub const LEVEL_DEBUG: u8 = 0
+pub const LEVEL_INFO:  u8 = 1
+pub const LEVEL_WARN:  u8 = 2
+pub const LEVEL_ERROR: u8 = 3
+pub const LEVEL_FATAL: u8 = 4
+
+// Each handler returns true if it "consumed" the record (stops the chain).
+pub fn console_handler(r: LogRecord) -> bool { if r.level >= LEVEL_DEBUG { return false } return false }
+pub fn file_handler   (r: LogRecord) -> bool { if r.level >= LEVEL_INFO  { return false } return false }
+pub fn email_handler  (r: LogRecord) -> bool { if r.level >= LEVEL_ERROR { return true  } return false }
+
+pub struct Chain { handlers: [fn(LogRecord) -> bool], fired: [u64] }
+
+pub fn dispatch(c: &mut Chain, r: LogRecord) {
+    let mut i: u64 = 0
+    while i < len(c.handlers) {
+        c.fired.push(i)
+        if (c.handlers[i])(r) { return }
+        i = i + 1
+    }
 }
 
-pub fn create_chain() -> Handler {
-    let small = Handler {
-        name: "SmallHandler", can_handle: fn(n) { return n < 10 },
-        process: fn(n) { return "Small: " + n as str },
-        next: nil
-    }
-    let medium = Handler {
-        name: "MediumHandler", can_handle: fn(n) { return n < 100 },
-        process: fn(n) { return "Medium: " + n as str },
-        next: nil
-    }
-    let large = Handler {
-        name: "LargeHandler", can_handle: fn(n) { return true },
-        process: fn(n) { return "Large: " + n as str },
-        next: nil
-    }
-    small.next = medium
-    medium.next = large
-    return small
-}
-
-pub fn handle(h: Handler?, request: int) -> str {
-    if h == nil { return "Unhandled" }
-    if h.can_handle(request) { return h.process(request) }
-    return handle(h.next, request)
-}
-
-fn main() {
-    let chain = create_chain()
-    println(handle(chain, 5))
-    println(handle(chain, 50))
-    println(handle(chain, 500))
+pub fn main() {
+    let mut c: Chain = Chain { handlers: [console_handler, file_handler, email_handler], fired: [] }
+    dispatch(&mut c, LogRecord { level: LEVEL_DEBUG, message: "debug" })
+    dispatch(&mut c, LogRecord { level: LEVEL_ERROR, message: "bad"   })
+    // Debug: all three run (nobody consumes). Error: all three run but email_handler returns true first time it matches.
+    print("fired events=", len(c.fired))
 }
