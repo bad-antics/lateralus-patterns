@@ -1,49 +1,47 @@
-// ────────────────────────────────────────────────────────────
-// Composite Pattern
-// ────────────────────────────────────────────────────────────
+// structural/composite.ltl
+// Composite: compose objects into tree structures so that clients treat
+// individual objects and compositions uniformly. Here the "Node" is either
+// a File (leaf) or a Folder (branch). size() recurses uniformly.
+// Ref: GoF p.163.
 
-pub struct FileNode {
-    name: str
-    size: int
-    children: list
-    is_dir: bool
+module structural.composite
+
+pub const KIND_FILE:   u8 = 0
+pub const KIND_FOLDER: u8 = 1
+
+pub struct Node { kind: u8, name: str, size_bytes: u64, children: [Node] }
+
+pub fn new_file(name: str, size_bytes: u64) -> Node {
+    return Node { kind: KIND_FILE, name: name, size_bytes: size_bytes, children: [] }
+}
+pub fn new_folder(name: str, children: [Node]) -> Node {
+    return Node { kind: KIND_FOLDER, name: name, size_bytes: 0, children: children }
 }
 
-impl FileNode {
-    pub fn file(name: str, size: int) -> FileNode {
-        return FileNode { name: name, size: size, children: [], is_dir: false }
-    }
-
-    pub fn dir(name: str) -> FileNode {
-        return FileNode { name: name, size: 0, children: [], is_dir: true }
-    }
-
-    pub fn add(self, child: FileNode) -> FileNode {
-        self.children = push(self.children, child)
-        return self
-    }
-
-    pub fn total_size(self) -> int {
-        if not self.is_dir { return self.size }
-        let mut total = 0
-        for child in self.children { total += child.total_size() }
-        return total
-    }
-
-    pub fn display(self, indent: str) {
-        let icon = if self.is_dir { "📁" } else { "📄" }
-        println(indent + icon + " " + self.name + " (" + self.total_size() as str + " bytes)")
-        for child in self.children { child.display(indent + "  ") }
-    }
+pub fn size(n: Node) -> u64 {
+    if n.kind == KIND_FILE { return n.size_bytes }
+    let mut s: u64 = 0
+    let mut i: u64 = 0
+    while i < len(n.children) { s = s + size(n.children[i]); i = i + 1 }
+    return s
 }
 
-fn main() {
-    let root = FileNode.dir("project")
-        .add(FileNode.file("README.md", 1024))
-        .add(FileNode.dir("src")
-            .add(FileNode.file("main.ltl", 2048))
-            .add(FileNode.file("utils.ltl", 512)))
-        .add(FileNode.dir("tests")
-            .add(FileNode.file("test_main.ltl", 768)))
-    root.display("")
+pub fn file_count(n: Node) -> u64 {
+    if n.kind == KIND_FILE { return 1 }
+    let mut c: u64 = 0
+    let mut i: u64 = 0
+    while i < len(n.children) { c = c + file_count(n.children[i]); i = i + 1 }
+    return c
+}
+
+pub fn main() {
+    let root: Node = new_folder("root", [
+        new_file("a.txt", 100),
+        new_folder("sub", [
+            new_file("b.txt", 200),
+            new_file("c.bin", 300),
+        ]),
+        new_file("d.md", 50),
+    ])
+    print("total size=", size(root), " (expect 650) files=", file_count(root), " (expect 4)")
 }
