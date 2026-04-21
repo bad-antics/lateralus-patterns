@@ -1,32 +1,42 @@
-// Design Pattern: Abstract Factory
-// Category: Creational
-module patterns.creational.abstract_factory
+// creational/abstract_factory.ltl
+// Abstract Factory: provides an interface for creating families of related
+// or dependent objects without specifying their concrete classes. Here we
+// model "UI theme" factories (Light/Dark) that both produce compatible
+// Button/Checkbox widgets. Ref: GoF p.87.
 
-pub struct AbstractfactoryContext {
-    state: map
-    history: list
+module creational.abstract_factory
+
+pub struct Button   { theme: str, bg: str, fg: str, label: str }
+pub struct Checkbox { theme: str, accent: str, checked: bool }
+
+pub const THEME_LIGHT: u8 = 0
+pub const THEME_DARK:  u8 = 1
+
+pub fn make_button(theme: u8, label: str) -> Button {
+    if theme == THEME_LIGHT {
+        return Button { theme: "light", bg: "#FFFFFF", fg: "#202020", label: label }
+    }
+    return Button { theme: "dark", bg: "#202020", fg: "#F0F0F0", label: label }
 }
 
-impl AbstractfactoryContext {
-    pub fn new() -> AbstractfactoryContext {
-        return AbstractfactoryContext { state: {}, history: [] }
+pub fn make_checkbox(theme: u8, checked: bool) -> Checkbox {
+    if theme == THEME_LIGHT {
+        return Checkbox { theme: "light", accent: "#0A74DA", checked: checked }
     }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+    return Checkbox { theme: "dark",  accent: "#80C8FF", checked: checked }
 }
 
-fn main() {
-    let ctx = AbstractfactoryContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Abstract Factory pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub struct Screen { btn: Button, chk: Checkbox }
+
+// Client code is theme-agnostic: it just calls the factory functions.
+pub fn build_login_screen(theme: u8) -> Screen {
+    return Screen { btn: make_button(theme, "Sign in"),
+                    chk: make_checkbox(theme, false) }
+}
+
+pub fn main() {
+    let light: Screen = build_login_screen(THEME_LIGHT)
+    let dark:  Screen = build_login_screen(THEME_DARK)
+    print("light btn bg=", light.btn.bg, " chk accent=", light.chk.accent)
+    print("dark  btn bg=", dark.btn.bg,  " chk accent=", dark.chk.accent)
 }
