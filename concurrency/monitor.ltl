@@ -1,32 +1,42 @@
-// Design Pattern: Monitor
-// Category: Concurrency
-module patterns.concurrency.monitor
+// concurrency/monitor.ltl
+// Monitor: object whose methods execute with mutual exclusion and that
+// provides condition variables for coordinated waiting.
+// Ref: Hoare 1974 "Monitors: An Operating System Structuring Concept".
+// Single-threaded simulation: lock is a counter; we assert no nested
+// acquire from the same "thread".
 
-pub struct MonitorContext {
-    state: map
-    history: list
+module concurrency.monitor
+
+pub struct Monitor { locked: bool, owner: u32, count: i64, waiters: [u32] }
+
+pub fn new_monitor() -> Monitor { return Monitor { locked: false, owner: 0, count: 0, waiters: [] } }
+
+pub fn enter(m: &mut Monitor, tid: u32) -> bool {
+    if m.locked && m.owner != tid { m.waiters.push(tid); return false }
+    m.locked = true; m.owner = tid
+    return true
 }
 
-impl MonitorContext {
-    pub fn new() -> MonitorContext {
-        return MonitorContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+pub fn leave(m: &mut Monitor, tid: u32) -> bool {
+    if !m.locked || m.owner != tid { return false }
+    if len(m.waiters) > 0 { m.owner = m.waiters[0]; m.waiters.remove(0) }
+    else                  { m.locked = false; m.owner = 0 }
+    return true
 }
 
-fn main() {
-    let ctx = MonitorContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Monitor pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn increment(m: &mut Monitor, tid: u32) -> bool {
+    if !enter(m, tid) { return false }
+    m.count = m.count + 1
+    return leave(m, tid)
+}
+
+pub fn main() {
+    let mut m: Monitor = new_monitor()
+    let _: bool = increment(&mut m, 1)
+    let _: bool = increment(&mut m, 1)
+    let _: bool = increment(&mut m, 2)
+    print("count=", m.count, " locked=", m.locked, " (expect 3 / false)")
+    let _: bool = enter(&mut m, 1)
+    let ok: bool = enter(&mut m, 2)     // contends
+    print("second enter ok=", ok, " waiters=", len(m.waiters), " (expect false / 1)")
 }
