@@ -1,37 +1,63 @@
-// ────────────────────────────────────────────────────────────
-// Command Pattern
-// ────────────────────────────────────────────────────────────
+// behavioral/command.ltl
+// Command: encapsulate a request as an object, allowing parameterisation
+// of clients, queueing, logging, and undoable operations. Here we build
+// a text editor with undo history. Ref: GoF p.233.
 
-pub struct TextEditor { content: str; history: list }
+module behavioral.command
 
-pub struct Command { action: str; data: str; prev: str }
+pub const CMD_INSERT: u8 = 0
+pub const CMD_DELETE: u8 = 1
 
-impl TextEditor {
-    pub fn new() -> TextEditor { return TextEditor { content: "", history: [] } }
+pub struct Command { kind: u8, position: u64, payload: str }
 
-    pub fn execute(self, cmd: Command) {
-        let prev = self.content
-        match cmd.action {
-            "append" => self.content += cmd.data
-            "clear" => self.content = ""
-        }
-        self.history = push(self.history, Command { action: cmd.action, data: cmd.data, prev: prev })
+pub struct Editor { text: str, history: [Command] }
+
+pub fn new_editor() -> Editor { return Editor { text: "", history: [] } }
+
+pub fn execute(e: &mut Editor, c: Command) {
+    if c.kind == CMD_INSERT {
+        let before: str = substr(e.text, 0, c.position)
+        let after:  str = substr(e.text, c.position, len(e.text))
+        e.text = before + c.payload + after
+    } else {
+        let n: u64 = len(c.payload)
+        let before: str = substr(e.text, 0, c.position)
+        let after:  str = substr(e.text, c.position + n, len(e.text))
+        e.text = before + after
     }
-
-    pub fn undo(self) {
-        if len(self.history) > 0 {
-            let last = self.history[len(self.history) - 1]
-            self.content = last.prev
-            self.history = slice(self.history, 0, len(self.history) - 1)
-        }
-    }
+    e.history.push(c)
 }
 
-fn main() {
-    let mut editor = TextEditor.new()
-    editor.execute(Command { action: "append", data: "Hello ", prev: "" })
-    editor.execute(Command { action: "append", data: "World!", prev: "" })
-    println("Content: " + editor.content)
-    editor.undo()
-    println("After undo: " + editor.content)
+pub fn undo(e: &mut Editor) -> bool {
+    if len(e.history) == 0 { return false }
+    let c: Command = e.history[len(e.history) - 1]
+    e.history.remove(len(e.history) - 1)
+    // inverse operation, do not push to history.
+    if c.kind == CMD_INSERT {
+        let n: u64 = len(c.payload)
+        let before: str = substr(e.text, 0, c.position)
+        let after:  str = substr(e.text, c.position + n, len(e.text))
+        e.text = before + after
+    } else {
+        let before: str = substr(e.text, 0, c.position)
+        let after:  str = substr(e.text, c.position, len(e.text))
+        e.text = before + c.payload + after
+    }
+    return true
+}
+
+fn substr(s: str, a: u64, b: u64) -> str {
+    let mut out: str = ""
+    let mut i: u64 = a
+    while i < b && i < len(s) { out = out + char_of(s[i]); i = i + 1 }
+    return out
+}
+
+pub fn main() {
+    let mut e: Editor = new_editor()
+    execute(&mut e, Command { kind: CMD_INSERT, position: 0, payload: "Hello" })
+    execute(&mut e, Command { kind: CMD_INSERT, position: 5, payload: ", World" })
+    print("after insert: ", e.text, " (expect 'Hello, World')")
+    undo(&mut e)
+    print("after undo:   ", e.text, " (expect 'Hello')")
 }
