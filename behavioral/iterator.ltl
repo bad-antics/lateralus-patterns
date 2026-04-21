@@ -1,40 +1,51 @@
-// ────────────────────────────────────────────────────────────
-// Iterator Pattern
-// ────────────────────────────────────────────────────────────
+// behavioral/iterator.ltl
+// Iterator: access elements of an aggregate sequentially without exposing
+// its internal representation. External iterator with hasNext/next API.
+// Ref: GoF p.257.
 
-pub struct Range {
-    current: int
-    end: int
-    step: int
+module behavioral.iterator
+
+pub struct VecIter { data: [i64], idx: u64 }
+
+pub fn iter(v: [i64]) -> VecIter { return VecIter { data: v, idx: 0 } }
+
+pub fn has_next(it: VecIter) -> bool { return it.idx < len(it.data) }
+
+pub fn next(it: &mut VecIter) -> i64 {
+    let v: i64 = it.data[it.idx]
+    it.idx = it.idx + 1
+    return v
 }
 
-impl Range {
-    pub fn new(start: int, end: int, step: int) -> Range {
-        return Range { current: start, end: end, step: step }
-    }
+// A filtered iterator built on top of another iterator (composition).
+pub struct EvenIter { inner: VecIter, peeked: bool, peek_val: i64 }
 
-    pub fn has_next(self) -> bool { return self.current < self.end }
+pub fn even_iter(v: [i64]) -> EvenIter { return EvenIter { inner: iter(v), peeked: false, peek_val: 0 } }
 
-    pub fn next(self) -> int {
-        let val = self.current
-        self.current += self.step
-        return val
+pub fn even_has_next(it: &mut EvenIter) -> bool {
+    if it.peeked { return true }
+    while has_next(it.inner) {
+        let x: i64 = next(&mut it.inner)
+        if (x % 2) == 0 { it.peeked = true; it.peek_val = x; return true }
     }
-
-    pub fn collect(self) -> list {
-        let mut result = []
-        while self.has_next() { result = push(result, self.next()) }
-        return result
-    }
+    return false
 }
 
-fn main() {
-    let r = Range.new(0, 20, 3)
-    println("Range: " + r.collect() as str)
-    let evens = Range.new(0, 20, 2)
-    while evens.has_next() {
-        let val = evens.next()
-        if val > 10 { break }
-        println(val as str)
-    }
+pub fn even_next(it: &mut EvenIter) -> i64 {
+    if !even_has_next(it) { return 0 }
+    it.peeked = false
+    return it.peek_val
+}
+
+pub fn main() {
+    let v: [i64] = [1, 2, 3, 4, 5, 6, 7, 8]
+    let mut sum: i64 = 0
+    let mut it: VecIter = iter(v)
+    while has_next(it) { sum = sum + next(&mut it) }
+    print("sum=", sum, " (expect 36)")
+
+    let mut ev: EvenIter = even_iter(v)
+    let mut s2: i64 = 0
+    while even_has_next(&mut ev) { s2 = s2 + even_next(&mut ev) }
+    print("even sum=", s2, " (expect 20)")
 }
