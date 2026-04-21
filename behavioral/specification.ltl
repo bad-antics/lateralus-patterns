@@ -1,32 +1,41 @@
-// Design Pattern: Specification
-// Category: Behavioral
-module patterns.behavioral.specification
+// behavioral/specification.ltl
+// Specification: encapsulate a business rule as a composable predicate
+// with logical AND / OR / NOT combinators. Callers compose specs and ask
+// `is_satisfied_by(entity)`. Ref: Evans, "Domain-Driven Design" (2004)
+// ch.9; Fowler & Evans 2003 PDF.
 
-pub struct SpecificationContext {
-    state: map
-    history: list
+module behavioral.specification
+
+pub struct Customer { age: u32, country: str, total_spent: f64 }
+
+// A spec is a closure Customer -> bool plus combinators.
+pub struct Spec { pred: fn(Customer) -> bool }
+
+pub fn satisfied(s: Spec, c: Customer) -> bool { return (s.pred)(c) }
+
+pub fn and_spec(a: Spec, b: Spec) -> Spec {
+    return Spec { pred: |c: Customer| -> bool { return (a.pred)(c) && (b.pred)(c) } }
+}
+pub fn or_spec(a: Spec, b: Spec) -> Spec {
+    return Spec { pred: |c: Customer| -> bool { return (a.pred)(c) || (b.pred)(c) } }
+}
+pub fn not_spec(a: Spec) -> Spec {
+    return Spec { pred: |c: Customer| -> bool { return !(a.pred)(c) } }
 }
 
-impl SpecificationContext {
-    pub fn new() -> SpecificationContext {
-        return SpecificationContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
-}
+pub fn adult() -> Spec        { return Spec { pred: |c: Customer| -> bool { return c.age >= 18 } } }
+pub fn us_only() -> Spec      { return Spec { pred: |c: Customer| -> bool { return c.country == "US" } } }
+pub fn big_spender() -> Spec  { return Spec { pred: |c: Customer| -> bool { return c.total_spent >= 1000.0 } } }
 
-fn main() {
-    let ctx = SpecificationContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Specification pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn main() {
+    let vip: Spec = and_spec(adult(), big_spender())
+    let us_vip: Spec = and_spec(vip, us_only())
+
+    let c1: Customer = Customer { age: 25, country: "US", total_spent: 2500.0 }
+    let c2: Customer = Customer { age: 17, country: "US", total_spent: 5000.0 }
+    let c3: Customer = Customer { age: 40, country: "FR", total_spent: 9000.0 }
+
+    print("c1 us_vip=", satisfied(us_vip, c1), " (expect true)")
+    print("c2 us_vip=", satisfied(us_vip, c2), " (expect false: under 18)")
+    print("c3 us_vip=", satisfied(us_vip, c3), " (expect false: not US)")
 }
