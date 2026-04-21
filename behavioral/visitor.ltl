@@ -1,32 +1,48 @@
-// Design Pattern: Visitor
-// Category: Behavioral
-module patterns.behavioral.visitor
+// behavioral/visitor.ltl
+// Visitor: separate an algorithm from the object structure it operates on.
+// Here an AST with Num/Add/Mul nodes is walked by two visitors: one that
+// evaluates, one that prints in S-expression form. Ref: GoF p.331.
 
-pub struct VisitorContext {
-    state: map
-    history: list
+module behavioral.visitor
+
+pub const N_NUM: u8 = 0
+pub const N_ADD: u8 = 1
+pub const N_MUL: u8 = 2
+
+pub struct Node { kind: u8, value: i64, children: [Node] }
+
+pub fn num(v: i64) -> Node         { return Node { kind: N_NUM, value: v, children: [] } }
+pub fn add(a: Node, b: Node) -> Node { return Node { kind: N_ADD, value: 0, children: [a, b] } }
+pub fn mul(a: Node, b: Node) -> Node { return Node { kind: N_MUL, value: 0, children: [a, b] } }
+
+// Visitor 1: evaluator.
+pub fn visit_eval(n: Node) -> i64 {
+    if n.kind == N_NUM { return n.value }
+    if n.kind == N_ADD { return visit_eval(n.children[0]) + visit_eval(n.children[1]) }
+    return visit_eval(n.children[0]) * visit_eval(n.children[1])
 }
 
-impl VisitorContext {
-    pub fn new() -> VisitorContext {
-        return VisitorContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+// Visitor 2: pretty-printer.
+pub fn visit_sexp(n: Node) -> str {
+    if n.kind == N_NUM { return itoa(n.value) }
+    let op: str = if n.kind == N_ADD { "+" } else { "*" }
+    return "(" + op + " " + visit_sexp(n.children[0]) + " " + visit_sexp(n.children[1]) + ")"
 }
 
-fn main() {
-    let ctx = VisitorContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Visitor pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+fn itoa(x: i64) -> str {
+    if x == 0 { return "0" }
+    let neg: bool = x < 0
+    let mut v: u64 = if neg { (-x) as u64 } else { x as u64 }
+    let mut buf: [u8] = u8_zeros(20); let mut n: u64 = 0
+    while v > 0 { buf[n] = ('0' as u8) + (v % 10) as u8; v = v / 10; n = n + 1 }
+    let mut s: str = if neg { "-" } else { "" }
+    while n > 0 { n = n - 1; s = s + char_of(buf[n]) }
+    return s
+}
+
+pub fn main() {
+    // (3 + 4) * 5
+    let t: Node = mul(add(num(3), num(4)), num(5))
+    print("eval =", visit_eval(t), " (expect 35)")
+    print("sexp =", visit_sexp(t))
 }
