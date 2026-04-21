@@ -1,32 +1,36 @@
-// Design Pattern: Scheduler
-// Category: Concurrency
-module patterns.concurrency.scheduler_pat
+// concurrency/scheduler_pat.ltl
+// Scheduler (concurrency variant, POSA2 ch.5): coordinates the order in
+// which threads execute critical sections. Implements round-robin over
+// ready threads, demonstrating starvation-free scheduling.
 
-pub struct SchedulerpatContext {
-    state: map
-    history: list
+module concurrency.scheduler_pat
+
+pub struct Thread { id: u32, work_left: u32 }
+
+pub struct ConcScheduler { ready: [Thread], history: [u32] }
+
+pub fn new_sched() -> ConcScheduler { return ConcScheduler { ready: [], history: [] } }
+
+pub fn spawn(s: &mut ConcScheduler, id: u32, work: u32) { s.ready.push(Thread { id: id, work_left: work }) }
+
+pub fn step(s: &mut ConcScheduler) -> bool {
+    if len(s.ready) == 0 { return false }
+    // round-robin: pop front, run one unit, push back if work remains.
+    let mut t: Thread = s.ready[0]
+    s.ready.remove(0)
+    s.history.push(t.id)
+    t.work_left = t.work_left - 1
+    if t.work_left > 0 { s.ready.push(t) }
+    return true
 }
 
-impl SchedulerpatContext {
-    pub fn new() -> SchedulerpatContext {
-        return SchedulerpatContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
-}
+pub fn run_all(s: &mut ConcScheduler) { while step(s) {} }
 
-fn main() {
-    let ctx = SchedulerpatContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Scheduler pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn main() {
+    let mut s: ConcScheduler = new_sched()
+    spawn(&mut s, 1, 3)
+    spawn(&mut s, 2, 2)
+    spawn(&mut s, 3, 1)
+    run_all(&mut s)
+    print("history=", s.history, " (expect [1,2,3,1,2,1])")
 }
