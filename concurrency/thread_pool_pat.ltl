@@ -1,32 +1,48 @@
-// Design Pattern: Thread Pool
-// Category: Concurrency
-module patterns.concurrency.thread_pool_pat
+// concurrency/thread_pool_pat.ltl
+// Thread Pool (POSA2 ch.5): a bounded set of worker threads dequeues from
+// a shared work queue. Amortises thread-creation cost and bounds
+// concurrency. Here "threads" are round-robin simulated.
 
-pub struct ThreadpoolpatContext {
-    state: map
-    history: list
+module concurrency.thread_pool_pat
+
+pub struct Work { id: u32, payload: i64, result: i64, done: bool }
+
+pub struct Pool { workers: u64, queue: [Work], cur: [i64], executed_by: [u64], done: [Work] }
+
+pub fn new_pool(n: u64) -> Pool {
+    let mut c: [i64] = []
+    let mut i: u64 = 0
+    while i < n { c.push(-1); i = i + 1 }
+    return Pool { workers: n, queue: [], cur: c, executed_by: [], done: [] }
 }
 
-impl ThreadpoolpatContext {
-    pub fn new() -> ThreadpoolpatContext {
-        return ThreadpoolpatContext { state: {}, history: [] }
+pub fn submit(p: &mut Pool, w: Work) { p.queue.push(w) }
+
+pub fn tick(p: &mut Pool) -> bool {
+    // Each tick: every idle worker pulls one task.
+    let mut any: bool = false
+    let mut w: u64 = 0
+    while w < p.workers {
+        if p.cur[w] < 0 && len(p.queue) > 0 {
+            let mut job: Work = p.queue[0]
+            p.queue.remove(0)
+            job.result = job.payload * job.payload
+            job.done = true
+            p.done.push(job); p.executed_by.push(w)
+            any = true
+        }
+        w = w + 1
     }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+    return any
 }
 
-fn main() {
-    let ctx = ThreadpoolpatContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Thread Pool pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn run_until_empty(p: &mut Pool) { while len(p.queue) > 0 { if !tick(p) { break } } }
+
+pub fn main() {
+    let mut p: Pool = new_pool(3)
+    let mut i: u32 = 0
+    while i < 7 { submit(&mut p, Work { id: i, payload: i as i64, result: 0, done: false }); i = i + 1 }
+    run_until_empty(&mut p)
+    print("done=", len(p.done), " pending=", len(p.queue), " (expect 7 / 0)")
+    print("first 3 executed by workers=", p.executed_by[0], p.executed_by[1], p.executed_by[2])
 }
