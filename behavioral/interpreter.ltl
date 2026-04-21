@@ -1,32 +1,72 @@
-// Design Pattern: Interpreter
-// Category: Behavioral
-module patterns.behavioral.interpreter
+// behavioral/interpreter.ltl
+// Interpreter: define a representation for a grammar together with an
+// interpreter that uses the representation to interpret sentences.
+// Here: arithmetic expressions with + - * / and integer literals.
+// Parser is a recursive-descent implementation. Ref: GoF p.243.
 
-pub struct InterpreterContext {
-    state: map
-    history: list
+module behavioral.interpreter
+
+pub struct Parser { src: str, pos: u64 }
+
+fn peek(p: Parser) -> u8 { if p.pos < len(p.src) { return p.src[p.pos] } return 0 }
+
+fn advance(p: &mut Parser) -> u8 { let c: u8 = p.src[p.pos]; p.pos = p.pos + 1; return c }
+
+fn skip_ws(p: &mut Parser) { while p.pos < len(p.src) && p.src[p.pos] == (' ' as u8) { p.pos = p.pos + 1 } }
+
+fn parse_number(p: &mut Parser) -> i64 {
+    skip_ws(p)
+    let mut v: i64 = 0
+    while p.pos < len(p.src) && p.src[p.pos] >= ('0' as u8) && p.src[p.pos] <= ('9' as u8) {
+        v = v * 10 + (p.src[p.pos] - ('0' as u8)) as i64
+        p.pos = p.pos + 1
+    }
+    return v
 }
 
-impl InterpreterContext {
-    pub fn new() -> InterpreterContext {
-        return InterpreterContext { state: {}, history: [] }
+fn parse_factor(p: &mut Parser) -> i64 {
+    skip_ws(p)
+    if peek(*p) == ('(' as u8) {
+        let _: u8 = advance(p)
+        let v: i64 = parse_expr(p)
+        skip_ws(p)
+        let _: u8 = advance(p) // consume ')'
+        return v
     }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+    return parse_number(p)
 }
 
-fn main() {
-    let ctx = InterpreterContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Interpreter pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+fn parse_term(p: &mut Parser) -> i64 {
+    let mut v: i64 = parse_factor(p)
+    skip_ws(p)
+    while peek(*p) == ('*' as u8) || peek(*p) == ('/' as u8) {
+        let op: u8 = advance(p)
+        let r: i64 = parse_factor(p)
+        if op == ('*' as u8) { v = v * r } else { v = v / r }
+        skip_ws(p)
+    }
+    return v
+}
+
+pub fn parse_expr(p: &mut Parser) -> i64 {
+    let mut v: i64 = parse_term(p)
+    skip_ws(p)
+    while peek(*p) == ('+' as u8) || peek(*p) == ('-' as u8) {
+        let op: u8 = advance(p)
+        let r: i64 = parse_term(p)
+        if op == ('+' as u8) { v = v + r } else { v = v - r }
+        skip_ws(p)
+    }
+    return v
+}
+
+pub fn interpret(src: str) -> i64 {
+    let mut p: Parser = Parser { src: src, pos: 0 }
+    return parse_expr(&mut p)
+}
+
+pub fn main() {
+    print("1+2*3       =", interpret("1+2*3"),       " (expect 7)")
+    print("(1+2)*3     =", interpret("(1+2)*3"),     " (expect 9)")
+    print("10 - 4 / 2  =", interpret("10 - 4 / 2"),  " (expect 8)")
 }
