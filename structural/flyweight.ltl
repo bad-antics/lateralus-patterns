@@ -1,37 +1,45 @@
-// ────────────────────────────────────────────────────────────
-// Flyweight Pattern
-// ────────────────────────────────────────────────────────────
+// structural/flyweight.ltl
+// Flyweight: share fine-grained objects efficiently by separating intrinsic
+// (shared) from extrinsic (caller-supplied) state. Here Glyph stores font
+// metrics once; per-character usage supplies (x, y). Ref: GoF p.195.
 
-pub struct CharacterStyle {
-    font: str
-    size: int
-    color: str
+module structural.flyweight
+
+pub struct Glyph { codepoint: u32, advance_px: u16, ascent_px: u16, descent_px: u16 }
+
+pub struct GlyphCache { keys: [u32], glyphs: [Glyph] }
+
+pub fn new_cache() -> GlyphCache { return GlyphCache { keys: [], glyphs: [] } }
+
+// Shared intrinsic state: one Glyph per codepoint.
+pub fn get_glyph(c: &mut GlyphCache, cp: u32) -> Glyph {
+    let mut i: u64 = 0
+    while i < len(c.keys) { if c.keys[i] == cp { return c.glyphs[i] }; i = i + 1 }
+    let g: Glyph = Glyph { codepoint: cp, advance_px: 8, ascent_px: 10, descent_px: 3 }
+    c.keys.push(cp); c.glyphs.push(g)
+    return g
 }
 
-pub struct StyleFactory {
-    styles: map
-}
+// Extrinsic state: position passed by caller each draw call.
+pub struct Drawn { glyph: Glyph, x: u32, y: u32 }
 
-impl StyleFactory {
-    pub fn new() -> StyleFactory { return StyleFactory { styles: {} } }
-
-    pub fn get_style(self, font: str, size: int, color: str) -> CharacterStyle {
-        let key = font + "_" + size as str + "_" + color
-        if not has_key(self.styles, key) {
-            self.styles[key] = CharacterStyle { font: font, size: size, color: color }
-        }
-        return self.styles[key]
+pub fn draw_string(c: &mut GlyphCache, s: str, x0: u32, y: u32) -> [Drawn] {
+    let mut out: [Drawn] = []
+    let mut x: u32 = x0
+    let mut i: u64 = 0
+    while i < len(s) {
+        let g: Glyph = get_glyph(c, s[i] as u32)
+        out.push(Drawn { glyph: g, x: x, y: y })
+        x = x + g.advance_px as u32
+        i = i + 1
     }
-
-    pub fn style_count(self) -> int { return len(keys(self.styles)) }
+    return out
 }
 
-fn main() {
-    let mut factory = StyleFactory.new()
-    let chars = ["H", "e", "l", "l", "o"]
-    for ch in chars {
-        let style = factory.get_style("Arial", 12, "black")
-        println(ch + " -> " + style.font + " " + style.size as str)
-    }
-    println("Unique styles: " + factory.style_count() as str)
+pub fn main() {
+    let mut c: GlyphCache = new_cache()
+    let d1: [Drawn] = draw_string(&mut c, "aba", 0, 20)
+    print("drawn=", len(d1), " unique glyphs cached=", len(c.keys), " (expect 3 / 2)")
+    let d2: [Drawn] = draw_string(&mut c, "bab", 100, 40)
+    print("drawn=", len(d2), " unique glyphs cached=", len(c.keys), " (still 2)")
 }
