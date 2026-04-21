@@ -1,52 +1,46 @@
-// ────────────────────────────────────────────────────────────
-// Builder Pattern
-// ────────────────────────────────────────────────────────────
+// creational/builder.ltl
+// Builder: separates the construction of a complex object from its
+// representation; the same construction process can create different
+// representations. Ref: GoF p.97.
+
+module creational.builder
 
 pub struct HttpRequest {
-    method: str
-    url: str
-    headers: map
-    body: str
+    method: str, url: str,
+    headers: [(str, str)], query: [(str, str)],
+    body: [u8], timeout_ms: u32,
 }
 
-pub struct RequestBuilder {
-    method: str
-    url: str
-    headers: map
-    body: str
+pub struct RequestBuilder { req: HttpRequest }
+
+pub fn builder() -> RequestBuilder {
+    return RequestBuilder { req: HttpRequest { method: "GET", url: "",
+                                                headers: [], query: [],
+                                                body: [], timeout_ms: 30000 } }
 }
 
-impl RequestBuilder {
-    pub fn new() -> RequestBuilder {
-        return RequestBuilder { method: "GET", url: "", headers: {}, body: "" }
-    }
+pub fn method(b: &mut RequestBuilder, m: str) { b.req.method = m }
+pub fn url(b: &mut RequestBuilder, u: str)    { b.req.url = u }
+pub fn header(b: &mut RequestBuilder, k: str, v: str) { b.req.headers.push((k, v)) }
+pub fn param(b: &mut RequestBuilder, k: str, v: str)  { b.req.query.push((k, v)) }
+pub fn body(b: &mut RequestBuilder, data: [u8])       { b.req.body = data }
+pub fn timeout_ms(b: &mut RequestBuilder, t: u32)     { b.req.timeout_ms = t }
 
-    pub fn method(self, m: str) -> RequestBuilder {
-        self.method = m; return self
-    }
-    pub fn url(self, u: str) -> RequestBuilder {
-        self.url = u; return self
-    }
-    pub fn header(self, key: str, val: str) -> RequestBuilder {
-        self.headers[key] = val; return self
-    }
-    pub fn body(self, b: str) -> RequestBuilder {
-        self.body = b; return self
-    }
-    pub fn build(self) -> HttpRequest {
-        return HttpRequest {
-            method: self.method, url: self.url,
-            headers: self.headers, body: self.body
-        }
-    }
+// Validate and emit the finished object.
+pub fn build(b: RequestBuilder) -> (bool, HttpRequest) {
+    if len(b.req.url) == 0 { return (false, b.req) }
+    return (true, b.req)
 }
 
-fn main() {
-    let req = RequestBuilder.new()
-        .method("POST")
-        .url("https://api.example.com/data")
-        .header("Content-Type", "application/json")
-        .body("{"key": "value"}")
-        .build()
-    println(req.method + " " + req.url)
+pub fn main() {
+    let mut b: RequestBuilder = builder()
+    method(&mut b, "POST"); url(&mut b, "https://api.example.com/v1/things")
+    header(&mut b, "Authorization", "Bearer xyz")
+    header(&mut b, "Content-Type", "application/json")
+    param(&mut b, "format", "json")
+    body(&mut b, str_to_bytes("{\"name\":\"widget\"}"))
+    timeout_ms(&mut b, 5000)
+    let (ok, r): (bool, HttpRequest) = build(b)
+    print("ok=", ok, " method=", r.method, " url=", r.url)
+    print("headers=", len(r.headers), " query=", len(r.query), " body_bytes=", len(r.body))
 }
