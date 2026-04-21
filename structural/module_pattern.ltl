@@ -1,32 +1,32 @@
-// Design Pattern: Module
-// Category: Structural
-module patterns.structural.module_pattern
+// structural/module_pattern.ltl
+// Module Pattern: encapsulate private state behind a published API. Here
+// we implement a counter module exposing `incr`, `value`, and `reset`
+// while hiding the internal counter variable (module-private mutable
+// state). Ref: Parnas 1972; JavaScript revealing-module idiom.
 
-pub struct ModulepatternContext {
-    state: map
-    history: list
-}
+module structural.module_pattern
 
-impl ModulepatternContext {
-    pub fn new() -> ModulepatternContext {
-        return ModulepatternContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
+// Module-private state (not `pub`).
+struct CounterState { value: i64, history: [i64] }
+
+static mut STATE: CounterState = CounterState { value: 0, history: [] }
+
+pub fn incr(delta: i64) -> i64 {
+    unsafe {
+        STATE.value = STATE.value + delta
+        STATE.history.push(STATE.value)
+        return STATE.value
     }
 }
 
-fn main() {
-    let ctx = ModulepatternContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Module pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn value() -> i64 { unsafe { return STATE.value } }
+
+pub fn history() -> [i64] { unsafe { return STATE.history } }
+
+pub fn reset() { unsafe { STATE.value = 0; STATE.history = [] } }
+
+pub fn main() {
+    reset()
+    incr(5); incr(3); incr(-2)
+    print("value=", value(), " history=", history())
 }
