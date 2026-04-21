@@ -1,43 +1,46 @@
-// ────────────────────────────────────────────────────────────
-// Strategy Pattern
-// ────────────────────────────────────────────────────────────
+// behavioral/strategy.ltl
+// Strategy: define a family of algorithms, encapsulate each, make them
+// interchangeable. Context delegates to a strategy function pointer.
+// Ref: GoF p.315.
 
-pub struct Sorter {
-    algorithm: fn(list) -> list
-}
+module behavioral.strategy
 
-fn bubble(arr: list) -> list {
-    let mut r = arr
-    let n = len(r)
-    let mut i = 0
-    while i < n - 1 {
-        let mut j = 0
-        while j < n - i - 1 {
-            if r[j] > r[j+1] { let t = r[j]; r[j] = r[j+1]; r[j+1] = t }
-            j += 1
+pub fn bubble_sort(a: [i64]) -> [i64] {
+    let mut out: [i64] = a; let n: u64 = len(out)
+    let mut i: u64 = 0
+    while i < n {
+        let mut j: u64 = 0
+        while j + 1 < n - i {
+            if out[j] > out[j+1] { let t: i64 = out[j]; out[j] = out[j+1]; out[j+1] = t }
+            j = j + 1
         }
-        i += 1
+        i = i + 1
     }
-    return r
+    return out
 }
 
-fn quick(arr: list) -> list {
-    if len(arr) <= 1 { return arr }
-    let p = arr[0]
-    let mut lo = []; let mut hi = []
-    let mut i = 1
-    while i < len(arr) {
-        if arr[i] < p { lo = push(lo, arr[i]) }
-        else { hi = push(hi, arr[i]) }
-        i += 1
+pub fn insertion_sort(a: [i64]) -> [i64] {
+    let mut out: [i64] = a
+    let mut i: u64 = 1
+    while i < len(out) {
+        let key: i64 = out[i]
+        let mut j: i64 = (i as i64) - 1
+        while j >= 0 && out[j as u64] > key { out[(j+1) as u64] = out[j as u64]; j = j - 1 }
+        out[(j+1) as u64] = key
+        i = i + 1
     }
-    return quick(lo) + [p] + quick(hi)
+    return out
 }
 
-fn main() {
-    let data = [5, 2, 8, 1, 9]
-    let s1 = Sorter { algorithm: bubble }
-    let s2 = Sorter { algorithm: quick }
-    println("Bubble: " + s1.algorithm(data) as str)
-    println("Quick: " + s2.algorithm(data) as str)
+pub struct SortContext { strategy: fn([i64]) -> [i64] }
+
+pub fn sort_with(ctx: SortContext, a: [i64]) -> [i64] { return ctx.strategy(a) }
+
+pub fn main() {
+    let a: [i64] = [3, 1, 4, 1, 5, 9, 2, 6]
+    let bs: [i64] = sort_with(SortContext { strategy: bubble_sort }, a)
+    let is_: [i64] = sort_with(SortContext { strategy: insertion_sort }, a)
+    print("bubble    =", bs)
+    print("insertion =", is_)
+    print("equal? ", bs == is_, " (expect true)")
 }
