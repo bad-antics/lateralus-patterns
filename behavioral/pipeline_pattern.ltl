@@ -1,32 +1,51 @@
-// Design Pattern: Pipeline
-// Category: Behavioral
-module patterns.behavioral.pipeline_pattern
+// behavioral/pipeline_pattern.ltl
+// Pipeline: process data through an ordered series of stages, each taking
+// the output of the previous stage. Related to Chain of Responsibility
+// but every stage transforms and forwards. Common in Unix pipes and in
+// functional programming as function composition.
 
-pub struct PipelinepatternContext {
-    state: map
-    history: list
+module behavioral.pipeline_pattern
+
+pub struct Pipeline { stages: [fn([i64]) -> [i64]] }
+
+pub fn new_pipeline() -> Pipeline { return Pipeline { stages: [] } }
+
+pub fn add_stage(p: &mut Pipeline, f: fn([i64]) -> [i64]) { p.stages.push(f) }
+
+pub fn run(p: Pipeline, input: [i64]) -> [i64] {
+    let mut cur: [i64] = input
+    let mut i: u64 = 0
+    while i < len(p.stages) { cur = (p.stages[i])(cur); i = i + 1 }
+    return cur
 }
 
-impl PipelinepatternContext {
-    pub fn new() -> PipelinepatternContext {
-        return PipelinepatternContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+fn keep_positive(xs: [i64]) -> [i64] {
+    let mut out: [i64] = []
+    let mut i: u64 = 0
+    while i < len(xs) { if xs[i] > 0 { out.push(xs[i]) }; i = i + 1 }
+    return out
 }
 
-fn main() {
-    let ctx = PipelinepatternContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Pipeline pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+fn square_each(xs: [i64]) -> [i64] {
+    let mut out: [i64] = []
+    let mut i: u64 = 0
+    while i < len(xs) { out.push(xs[i] * xs[i]); i = i + 1 }
+    return out
+}
+
+fn sum_as_singleton(xs: [i64]) -> [i64] {
+    let mut s: i64 = 0
+    let mut i: u64 = 0
+    while i < len(xs) { s = s + xs[i]; i = i + 1 }
+    return [s]
+}
+
+pub fn main() {
+    let mut p: Pipeline = new_pipeline()
+    add_stage(&mut p, keep_positive)
+    add_stage(&mut p, square_each)
+    add_stage(&mut p, sum_as_singleton)
+    let input: [i64] = [-2, -1, 0, 1, 2, 3]  // keep {1,2,3} -> {1,4,9} -> {14}
+    let out: [i64] = run(p, input)
+    print("out=", out, " (expect [14])")
 }
