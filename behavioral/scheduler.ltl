@@ -1,32 +1,56 @@
-// Design Pattern: Scheduler
-// Category: Behavioral
-module patterns.behavioral.scheduler
+// behavioral/scheduler.ltl
+// Scheduler pattern (behavioral): decides the order in which requests are
+// serviced. Implements Earliest-Deadline-First (Liu & Layland 1973). On
+// each step the task with the smallest deadline is executed.
 
-pub struct SchedulerContext {
-    state: map
-    history: list
+module behavioral.scheduler
+
+pub struct Task { id: u32, release: u64, deadline: u64, duration: u64, done: bool }
+
+pub struct Scheduler { tasks: [Task], time: u64, order: [u32] }
+
+pub fn new_sched() -> Scheduler { return Scheduler { tasks: [], time: 0, order: [] } }
+
+pub fn submit(s: &mut Scheduler, t: Task) { s.tasks.push(t) }
+
+fn pick_edf(s: Scheduler) -> i64 {
+    let mut best: i64 = -1
+    let mut i: u64 = 0
+    while i < len(s.tasks) {
+        let t: Task = s.tasks[i]
+        if !t.done && t.release <= s.time {
+            if best < 0 || t.deadline < s.tasks[best as u64].deadline { best = i as i64 }
+        }
+        i = i + 1
+    }
+    return best
 }
 
-impl SchedulerContext {
-    pub fn new() -> SchedulerContext {
-        return SchedulerContext { state: {}, history: [] }
+pub fn run(s: &mut Scheduler) -> bool {
+    // returns true on success (all met), false if any task misses deadline.
+    let mut ok: bool = true
+    let mut all_done: bool = false
+    while !all_done {
+        all_done = true
+        let mut i: u64 = 0
+        while i < len(s.tasks) { if !s.tasks[i].done { all_done = false }; i = i + 1 }
+        if all_done { break }
+        let idx: i64 = pick_edf(*s)
+        if idx < 0 { s.time = s.time + 1; continue }
+        let u: u64 = idx as u64
+        s.tasks[u].done = true
+        s.order.push(s.tasks[u].id)
+        s.time = s.time + s.tasks[u].duration
+        if s.time > s.tasks[u].deadline { ok = false }
     }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+    return ok
 }
 
-fn main() {
-    let ctx = SchedulerContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Scheduler pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn main() {
+    let mut s: Scheduler = new_sched()
+    submit(&mut s, Task { id: 1, release: 0, deadline: 10, duration: 3, done: false })
+    submit(&mut s, Task { id: 2, release: 0, deadline: 5,  duration: 2, done: false })
+    submit(&mut s, Task { id: 3, release: 1, deadline: 8,  duration: 2, done: false })
+    let ok: bool = run(&mut s)
+    print("order=", s.order, " ok=", ok, " finish_time=", s.time, " (expect [2,3,1])")
 }
