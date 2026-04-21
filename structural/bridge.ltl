@@ -1,32 +1,41 @@
-// Design Pattern: Bridge
-// Category: Structural
-module patterns.structural.bridge
+// structural/bridge.ltl
+// Bridge: decouple an abstraction from its implementation so the two can
+// vary independently. Classic example: shapes (abstraction) rendered by
+// different graphics APIs (implementation). Ref: GoF p.151.
 
-pub struct BridgeContext {
-    state: map
-    history: list
+module structural.bridge
+
+pub const RENDER_VECTOR: u8 = 0
+pub const RENDER_RASTER: u8 = 1
+
+pub struct Renderer { kind: u8, ops: u64 }
+
+pub fn render_circle(r: &mut Renderer, x: f64, y: f64, radius: f64) -> str {
+    r.ops = r.ops + 1
+    if r.kind == RENDER_VECTOR { return "<circle cx=x cy=y r=radius />" }
+    return "rasterised circle pixels"
 }
 
-impl BridgeContext {
-    pub fn new() -> BridgeContext {
-        return BridgeContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+pub fn render_square(r: &mut Renderer, x: f64, y: f64, side: f64) -> str {
+    r.ops = r.ops + 1
+    if r.kind == RENDER_VECTOR { return "<rect ... />" }
+    return "rasterised square pixels"
 }
 
-fn main() {
-    let ctx = BridgeContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Bridge pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+// Abstraction hierarchy.
+pub struct Shape { kind: str, a: f64, b: f64, c: f64 }
+
+pub fn draw(s: Shape, r: &mut Renderer) -> str {
+    if s.kind == "circle" { return render_circle(r, s.a, s.b, s.c) }
+    if s.kind == "square" { return render_square(r, s.a, s.b, s.c) }
+    return ""
+}
+
+pub fn main() {
+    let mut vec: Renderer = Renderer { kind: RENDER_VECTOR, ops: 0 }
+    let mut ras: Renderer = Renderer { kind: RENDER_RASTER, ops: 0 }
+    let c: Shape = Shape { kind: "circle", a: 10.0, b: 20.0, c: 5.0 }
+    print("vec: ", draw(c, &mut vec))
+    print("ras: ", draw(c, &mut ras))
+    print("ops vec=", vec.ops, " ras=", ras.ops)
 }
