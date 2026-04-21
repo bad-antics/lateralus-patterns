@@ -1,32 +1,37 @@
-// Design Pattern: Marker
-// Category: Structural
-module patterns.structural.marker
+// structural/marker.ltl
+// Marker Interface: interfaces with no members used solely to tag types.
+// Modelled as a boolean flag on a type descriptor.
+// Real-world examples: java.io.Serializable, Rust `Send`/`Sync`.
 
-pub struct MarkerContext {
-    state: map
-    history: list
+module structural.marker
+
+pub struct TypeInfo {
+    name: str,
+    serialisable: bool, cloneable: bool, thread_safe: bool,
 }
 
-impl MarkerContext {
-    pub fn new() -> MarkerContext {
-        return MarkerContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+pub fn is_marked(ti: TypeInfo, marker: str) -> bool {
+    if marker == "Serialisable" { return ti.serialisable }
+    if marker == "Cloneable"    { return ti.cloneable }
+    if marker == "ThreadSafe"   { return ti.thread_safe }
+    return false
 }
 
-fn main() {
-    let ctx = MarkerContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Marker pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn filter_marked(types: [TypeInfo], marker: str) -> [TypeInfo] {
+    let mut out: [TypeInfo] = []
+    let mut i: u64 = 0
+    while i < len(types) { if is_marked(types[i], marker) { out.push(types[i]) }; i = i + 1 }
+    return out
+}
+
+pub fn main() {
+    let ts: [TypeInfo] = [
+        TypeInfo { name: "User",    serialisable: true,  cloneable: true,  thread_safe: false },
+        TypeInfo { name: "Session", serialisable: true,  cloneable: false, thread_safe: true  },
+        TypeInfo { name: "Socket",  serialisable: false, cloneable: false, thread_safe: false },
+    ]
+    let s: [TypeInfo] = filter_marked(ts, "Serialisable")
+    print("serialisable=", len(s), " (expect 2)")
+    let t: [TypeInfo] = filter_marked(ts, "ThreadSafe")
+    print("thread_safe =", len(t), " names=", t[0].name)
 }
