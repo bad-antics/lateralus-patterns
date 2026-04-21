@@ -1,32 +1,34 @@
-// Design Pattern: Null Object
-// Category: Behavioral
-module patterns.behavioral.null_object
+// behavioral/null_object.ltl
+// Null Object: provide a no-op object with the expected interface so that
+// callers never have to check for null. Here a NullLogger satisfies the
+// Logger interface but does nothing. Ref: Martin, "Agile Software
+// Development" (2002); Woolf, PLoPD3 (1998).
 
-pub struct NullobjectContext {
-    state: map
-    history: list
+module behavioral.null_object
+
+pub struct Logger { log_fn: fn(str), count_ref: &mut u64 }
+
+pub fn log(l: &mut Logger, msg: str) { *l.count_ref = *l.count_ref + 1; (l.log_fn)(msg) }
+
+fn stdout_log(s: str) { print("LOG: ", s) }
+fn null_log  (_: str) { /* intentionally empty */ }
+
+static mut REAL_COUNT: u64 = 0
+static mut NULL_COUNT: u64 = 0
+
+pub fn real_logger() -> Logger { unsafe { return Logger { log_fn: stdout_log, count_ref: &mut REAL_COUNT } } }
+pub fn null_logger() -> Logger { unsafe { return Logger { log_fn: null_log,   count_ref: &mut NULL_COUNT } } }
+
+pub fn do_work(l: &mut Logger, n: u64) {
+    let mut i: u64 = 0
+    while i < n { log(l, "working..."); i = i + 1 }
 }
 
-impl NullobjectContext {
-    pub fn new() -> NullobjectContext {
-        return NullobjectContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
-}
-
-fn main() {
-    let ctx = NullobjectContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Null Object pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn main() {
+    unsafe { REAL_COUNT = 0; NULL_COUNT = 0 }
+    let mut r: Logger = real_logger()
+    let mut nl: Logger = null_logger()
+    do_work(&mut r,  2)
+    do_work(&mut nl, 100)   // fast: no I/O, but counts still tick
+    unsafe { print("real=", REAL_COUNT, " null=", NULL_COUNT, " (expect 2 / 100)") }
 }
