@@ -1,32 +1,34 @@
-// Design Pattern: Template Method
-// Category: Behavioral
-module patterns.behavioral.template_method
+// behavioral/template_method.ltl
+// Template Method: define the skeleton of an algorithm in a base
+// procedure, deferring steps to subroutine hooks (function pointers).
+// Demo: parameterised document export pipeline. Ref: GoF p.325.
 
-pub struct TemplatemethodContext {
-    state: map
-    history: list
+module behavioral.template_method
+
+pub struct Exporter {
+    before:  fn() -> str,
+    body:    fn(str) -> str,
+    after:   fn() -> str,
 }
 
-impl TemplatemethodContext {
-    pub fn new() -> TemplatemethodContext {
-        return TemplatemethodContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+pub fn export(e: Exporter, content: str) -> str {
+    let head: str = (e.before)()
+    let mid:  str = (e.body)(content)
+    let tail: str = (e.after)()
+    return head + mid + tail
 }
 
-fn main() {
-    let ctx = TemplatemethodContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Template Method pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+fn html_before() -> str { return "<html><body>" }
+fn html_body  (c: str) -> str { return "<p>" + c + "</p>" }
+fn html_after () -> str { return "</body></html>" }
+
+fn md_before() -> str { return "# Document\n\n" }
+fn md_body  (c: str) -> str { return "> " + c + "\n" }
+fn md_after () -> str { return "\n---\n" }
+
+pub fn main() {
+    let html: Exporter = Exporter { before: html_before, body: html_body, after: html_after }
+    let md:   Exporter = Exporter { before: md_before,   body: md_body,   after: md_after   }
+    print(export(html, "hello"))
+    print(export(md,   "hello"))
 }
