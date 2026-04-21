@@ -1,32 +1,48 @@
-// Design Pattern: Extension Object
-// Category: Structural
-module patterns.structural.extension_object
+// structural/extension_object.ltl
+// Extension Object: lets you add new interfaces to an object without
+// changing its class, by querying for extension identifiers at runtime.
+// Used by COM (IUnknown::QueryInterface) and Eclipse's IAdaptable.
 
-pub struct ExtensionobjectContext {
-    state: map
-    history: list
+module structural.extension_object
+
+pub struct Extension { tag: str, blob: [u8] }
+
+pub struct Entity { id: u32, name: str, exts: [Extension] }
+
+pub fn add_extension(e: &mut Entity, tag: str, blob: [u8]) {
+    let mut i: u64 = 0
+    while i < len(e.exts) {
+        if e.exts[i].tag == tag { e.exts[i].blob = blob; return }
+        i = i + 1
+    }
+    e.exts.push(Extension { tag: tag, blob: blob })
 }
 
-impl ExtensionobjectContext {
-    pub fn new() -> ExtensionobjectContext {
-        return ExtensionobjectContext { state: {}, history: [] }
+pub fn query_interface(e: Entity, tag: str) -> (bool, [u8]) {
+    let mut i: u64 = 0
+    while i < len(e.exts) {
+        if e.exts[i].tag == tag { return (true, e.exts[i].blob) }
+        i = i + 1
     }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
+    return (false, [])
 }
 
-fn main() {
-    let ctx = ExtensionobjectContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Extension Object pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn remove_extension(e: &mut Entity, tag: str) -> bool {
+    let mut i: u64 = 0
+    while i < len(e.exts) {
+        if e.exts[i].tag == tag { e.exts.remove(i); return true }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn main() {
+    let mut e: Entity = Entity { id: 1, name: "doc", exts: [] }
+    add_extension(&mut e, "Printable", str_to_bytes("print-spec"))
+    add_extension(&mut e, "Exportable", str_to_bytes("pdf,epub"))
+    let (ok, b): (bool, [u8]) = query_interface(e, "Printable")
+    print("printable ok=", ok, " blob=", b)
+    remove_extension(&mut e, "Printable")
+    let (ok2, _): (bool, [u8]) = query_interface(e, "Printable")
+    print("after remove ok=", ok2, " (expect false)")
 }
