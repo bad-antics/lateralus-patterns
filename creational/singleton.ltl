@@ -1,25 +1,40 @@
-// ────────────────────────────────────────────────────────────
-// Singleton Pattern
-// ────────────────────────────────────────────────────────────
+// creational/singleton.ltl
+// Singleton: ensures a class has only one instance and provides a global
+// access point. Thread-safe double-checked initialisation here is modeled
+// with a single boolean flag; in real code use std::sync::Once or the
+// equivalent platform primitive.
+// Ref: Gamma et al. "Design Patterns" (1994) p.127.
 
-pub struct Config {
-    host: str
-    port: int
-    debug: bool
+module creational.singleton
+
+pub struct Config { db_url: str, max_connections: u32, debug: bool }
+
+pub struct SingletonHolder { initialised: bool, instance: Config }
+
+static mut HOLDER: SingletonHolder = SingletonHolder {
+    initialised: false,
+    instance: Config { db_url: "", max_connections: 0, debug: false }
 }
 
-let mut _instance: Config? = nil
-
-pub fn get_config() -> Config {
-    if _instance == nil {
-        _instance = Config { host: "localhost", port: 8080, debug: false }
+pub fn instance() -> Config {
+    unsafe {
+        if !HOLDER.initialised {
+            HOLDER.instance = Config { db_url: "postgres://localhost/app",
+                                       max_connections: 32, debug: false }
+            HOLDER.initialised = true
+        }
+        return HOLDER.instance
     }
-    return _instance
 }
 
-fn main() {
-    let c1 = get_config()
-    let c2 = get_config()
-    println("Same instance: " + (c1 == c2) as str)
-    println("Host: " + c1.host)
+pub fn reset_for_tests() {
+    unsafe { HOLDER.initialised = false }
+}
+
+pub fn main() {
+    let a: Config = instance()
+    let b: Config = instance()
+    // Both references correspond to the same underlying state.
+    print("a.db_url=", a.db_url, " b.debug=", b.debug)
+    print("same max_connections? ", a.max_connections == b.max_connections)
 }
