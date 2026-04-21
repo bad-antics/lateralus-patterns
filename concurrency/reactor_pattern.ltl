@@ -1,32 +1,55 @@
-// Design Pattern: Reactor
-// Category: Concurrency
-module patterns.concurrency.reactor_pattern
+// concurrency/reactor_pattern.ltl
+// Reactor (POSA2 ch.3, Schmidt 1995): de-multiplexes I/O events on a set
+// of handles and dispatches each event synchronously to its registered
+// handler. Models the core loop of libevent, Twisted, Node.js.
 
-pub struct ReactorpatternContext {
-    state: map
-    history: list
+module concurrency.reactor_pattern
+
+pub const EV_READ:  u8 = 1
+pub const EV_WRITE: u8 = 2
+
+pub struct Handler { fd: u32, mask: u8, callback: fn(u32, u8) }
+
+pub struct Event { fd: u32, kind: u8 }
+
+pub struct Reactor { handlers: [Handler], pending: [Event], dispatched: u64 }
+
+pub fn new_reactor() -> Reactor { return Reactor { handlers: [], pending: [], dispatched: 0 } }
+
+pub fn register(r: &mut Reactor, h: Handler) { r.handlers.push(h) }
+
+pub fn deliver(r: &mut Reactor, e: Event) { r.pending.push(e) }
+
+pub fn run_once(r: &mut Reactor) -> u64 {
+    let mut n: u64 = 0
+    while len(r.pending) > 0 {
+        let e: Event = r.pending[0]
+        r.pending.remove(0)
+        let mut i: u64 = 0
+        while i < len(r.handlers) {
+            let h: Handler = r.handlers[i]
+            if h.fd == e.fd && (h.mask & e.kind) != 0 {
+                (h.callback)(e.fd, e.kind); r.dispatched = r.dispatched + 1; n = n + 1
+            }
+            i = i + 1
+        }
+    }
+    return n
 }
 
-impl ReactorpatternContext {
-    pub fn new() -> ReactorpatternContext {
-        return ReactorpatternContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
-}
+static mut LOG: [u32] = []
+fn on_read (fd: u32, _: u8) { unsafe { LOG.push(fd * 10 + 1) } }
+fn on_write(fd: u32, _: u8) { unsafe { LOG.push(fd * 10 + 2) } }
 
-fn main() {
-    let ctx = ReactorpatternContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Reactor pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn main() {
+    unsafe { LOG = [] }
+    let mut r: Reactor = new_reactor()
+    register(&mut r, Handler { fd: 3, mask: EV_READ,  callback: on_read  })
+    register(&mut r, Handler { fd: 3, mask: EV_WRITE, callback: on_write })
+    register(&mut r, Handler { fd: 4, mask: EV_READ,  callback: on_read  })
+    deliver(&mut r, Event { fd: 3, kind: EV_READ  })
+    deliver(&mut r, Event { fd: 3, kind: EV_WRITE })
+    deliver(&mut r, Event { fd: 4, kind: EV_READ  })
+    let n: u64 = run_once(&mut r)
+    unsafe { print("dispatched=", n, " log=", LOG, " (expect 3 / [31,32,41])") }
 }
