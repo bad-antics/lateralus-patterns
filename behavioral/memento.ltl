@@ -1,32 +1,36 @@
-// Design Pattern: Memento
-// Category: Behavioral
-module patterns.behavioral.memento
+// behavioral/memento.ltl
+// Memento: capture an object's internal state so it can be restored later
+// without violating encapsulation. Here a Game saves "memento" snapshots
+// used as checkpoints. Ref: GoF p.283.
 
-pub struct MementoContext {
-    state: map
-    history: list
+module behavioral.memento
+
+pub struct GameState { level: u32, hp: i32, mp: i32, score: u64 }
+
+pub struct Memento { state: GameState, tag: str }
+
+pub struct Game { current: GameState, saves: [Memento] }
+
+pub fn new_game() -> Game { return Game { current: GameState { level: 1, hp: 100, mp: 50, score: 0 }, saves: [] } }
+
+pub fn save(g: &mut Game, tag: str) { g.saves.push(Memento { state: g.current, tag: tag }) }
+
+pub fn restore(g: &mut Game, tag: str) -> bool {
+    let mut i: u64 = 0
+    while i < len(g.saves) {
+        if g.saves[i].tag == tag { g.current = g.saves[i].state; return true }
+        i = i + 1
+    }
+    return false
 }
 
-impl MementoContext {
-    pub fn new() -> MementoContext {
-        return MementoContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
-    }
-}
+pub fn take_damage(g: &mut Game, dmg: i32) { g.current.hp = g.current.hp - dmg }
 
-fn main() {
-    let ctx = MementoContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Memento pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn main() {
+    let mut g: Game = new_game()
+    save(&mut g, "start")
+    take_damage(&mut g, 70)
+    print("hp after damage=", g.current.hp, " (expect 30)")
+    let ok: bool = restore(&mut g, "start")
+    print("restored ok=", ok, " hp=", g.current.hp, " (expect 100)")
 }
