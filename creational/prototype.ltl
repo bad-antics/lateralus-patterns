@@ -1,29 +1,41 @@
-// ────────────────────────────────────────────────────────────
-// Prototype Pattern
-// ────────────────────────────────────────────────────────────
+// creational/prototype.ltl
+// Prototype: create new objects by copying a fully-initialised exemplar.
+// Avoids rebuilding expensive state; clients hold a registry of prototypes
+// indexed by name. Ref: GoF p.117.
 
-pub struct Document {
-    title: str
-    content: str
-    metadata: map
+module creational.prototype
+
+pub struct Shape { kind: str, x: f64, y: f64, color: str, stroke_width: f64 }
+
+pub fn clone_shape(s: Shape) -> Shape {
+    // Value semantics already copy; in languages with reference semantics
+    // this would be a deep copy of every nested field.
+    return Shape { kind: s.kind, x: s.x, y: s.y, color: s.color, stroke_width: s.stroke_width }
 }
 
-impl Document {
-    pub fn clone(self) -> Document {
-        let mut meta_copy = {}
-        for k in keys(self.metadata) { meta_copy[k] = self.metadata[k] }
-        return Document { title: self.title, content: self.content, metadata: meta_copy }
+pub struct Registry { names: [str], protos: [Shape] }
+
+pub fn register(r: &mut Registry, name: str, proto: Shape) { r.names.push(name); r.protos.push(proto) }
+
+pub fn create(r: Registry, name: str, x: f64, y: f64) -> (bool, Shape) {
+    let mut i: u64 = 0
+    while i < len(r.names) {
+        if r.names[i] == name {
+            let mut c: Shape = clone_shape(r.protos[i])
+            c.x = x; c.y = y
+            return (true, c)
+        }
+        i = i + 1
     }
+    return (false, Shape { kind: "", x: 0.0, y: 0.0, color: "", stroke_width: 0.0 })
 }
 
-fn main() {
-    let template = Document {
-        title: "Template", content: "Default content",
-        metadata: {"author": "System", "version": "1.0"}
-    }
-    let mut doc = template.clone()
-    doc.title = "My Document"
-    doc.metadata["author"] = "Alice"
-    println(doc.title + " by " + doc.metadata["author"])
-    println("Template still: " + template.metadata["author"])
+pub fn main() {
+    let mut r: Registry = Registry { names: [], protos: [] }
+    register(&mut r, "red-circle", Shape { kind: "circle", x: 0.0, y: 0.0, color: "red", stroke_width: 2.0 })
+    register(&mut r, "blue-square", Shape { kind: "square", x: 0.0, y: 0.0, color: "blue", stroke_width: 1.0 })
+    let (ok, c1): (bool, Shape) = create(r, "red-circle", 10.0, 20.0)
+    let (_,  c2): (bool, Shape) = create(r, "blue-square", 30.0, 40.0)
+    print("ok=", ok, " c1=", c1.kind, c1.color, c1.x, c1.y)
+    print("c2=", c2.kind, c2.color, c2.x, c2.y)
 }
