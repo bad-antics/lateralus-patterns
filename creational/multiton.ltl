@@ -1,32 +1,34 @@
-// Design Pattern: Multiton
-// Category: Creational
-module patterns.creational.multiton
+// creational/multiton.ltl
+// Multiton: generalisation of Singleton where one unique instance is kept
+// per key. Commonly used for registry-like objects (colour palettes,
+// per-database connection pools, per-tenant caches).
 
-pub struct MultitonContext {
-    state: map
-    history: list
-}
+module creational.multiton
 
-impl MultitonContext {
-    pub fn new() -> MultitonContext {
-        return MultitonContext { state: {}, history: [] }
-    }
-    pub fn apply(self, action: str, data: any) -> any {
-        self.history = push(self.history, {"action": action, "data": data})
-        self.state[action] = data
-        return data
-    }
-    pub fn undo(self) -> bool {
-        if len(self.history) == 0 { return false }
-        self.history = slice(self.history, 0, len(self.history) - 1)
-        return true
+pub struct Logger { name: str, level: u8, sink: str }
+
+pub struct Registry { keys: [str], values: [Logger] }
+
+static mut REG: Registry = Registry { keys: [], values: [] }
+
+pub fn for_name(name: str) -> Logger {
+    unsafe {
+        let mut i: u64 = 0
+        while i < len(REG.keys) { if REG.keys[i] == name { return REG.values[i] }; i = i + 1 }
+        let l: Logger = Logger { name: name, level: 2, sink: "stderr" }    // default INFO
+        REG.keys.push(name); REG.values.push(l)
+        return l
     }
 }
 
-fn main() {
-    let ctx = MultitonContext.new()
-    ctx.apply("init", {"version": "1.0"})
-    ctx.apply("update", {"value": 42})
-    println("Multiton pattern: " + ctx.state as str)
-    println("History length: " + len(ctx.history) as str)
+pub fn count() -> u64 { unsafe { return len(REG.keys) } }
+
+pub fn reset_for_tests() { unsafe { REG.keys = []; REG.values = [] } }
+
+pub fn main() {
+    reset_for_tests()
+    let _a: Logger = for_name("net")
+    let _b: Logger = for_name("db")
+    let _c: Logger = for_name("net")      // reuse
+    print("distinct loggers=", count(), " (expect 2)")
 }
