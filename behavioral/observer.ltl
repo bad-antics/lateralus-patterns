@@ -1,31 +1,37 @@
-// ────────────────────────────────────────────────────────────
-// Observer Pattern
-// ────────────────────────────────────────────────────────────
+// behavioral/observer.ltl
+// Observer: one-to-many dependency. When the subject's state changes, all
+// observers are notified. Here observers are callback function pointers.
+// Ref: GoF p.293.
 
-pub struct EventBus {
-    subscribers: map
+module behavioral.observer
+
+pub struct Subject { value: i64, subscribers: [fn(i64)] }
+
+pub fn new_subject() -> Subject { return Subject { value: 0, subscribers: [] } }
+
+pub fn subscribe(s: &mut Subject, cb: fn(i64)) { s.subscribers.push(cb) }
+
+pub fn set_value(s: &mut Subject, v: i64) {
+    s.value = v
+    let mut i: u64 = 0
+    while i < len(s.subscribers) { (s.subscribers[i])(v); i = i + 1 }
 }
 
-impl EventBus {
-    pub fn new() -> EventBus { return EventBus { subscribers: {} } }
+// For the demo: observers accumulate into a module-private log.
+static mut LOG_A: [i64] = []
+static mut LOG_B: [i64] = []
 
-    pub fn subscribe(self, topic: str, handler: fn(any)) {
-        if not has_key(self.subscribers, topic) { self.subscribers[topic] = [] }
-        self.subscribers[topic] = push(self.subscribers[topic], handler)
+fn observer_a(v: i64) { unsafe { LOG_A.push(v) } }
+fn observer_b(v: i64) { unsafe { LOG_B.push(v * 2) } }
+
+pub fn main() {
+    unsafe { LOG_A = []; LOG_B = [] }
+    let mut s: Subject = new_subject()
+    subscribe(&mut s, observer_a)
+    subscribe(&mut s, observer_b)
+    set_value(&mut s, 10); set_value(&mut s, 5); set_value(&mut s, 7)
+    unsafe {
+        print("A=", LOG_A, " (expect [10,5,7])")
+        print("B=", LOG_B, " (expect [20,10,14])")
     }
-
-    pub fn publish(self, topic: str, data: any) {
-        if has_key(self.subscribers, topic) {
-            for handler in self.subscribers[topic] { handler(data) }
-        }
-    }
-}
-
-fn main() {
-    let mut bus = EventBus.new()
-    bus.subscribe("order.created", fn(data) { println("Email: Order " + data as str) })
-    bus.subscribe("order.created", fn(data) { println("Log: Order " + data as str) })
-    bus.subscribe("order.shipped", fn(data) { println("SMS: Shipped " + data as str) })
-    bus.publish("order.created", "#12345")
-    bus.publish("order.shipped", "#12345")
 }
